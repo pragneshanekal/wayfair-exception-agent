@@ -2,6 +2,7 @@
   {
     "id": "case_001",
     "description": "Shipment stuck in transit beyond SLA window",
+    "severity": "medium",
     "input": {
       "exception_type": "delayed_shipment",
       "order_id": "ORD-8821",
@@ -18,18 +19,12 @@
       },
       "customer_email": "jane.doe@example.com",
       "order_value_usd": 142.50
-    },
-    "expected_actions": [
-      "investigate_carrier_delay",
-      "notify_customer",
-      "escalate_if_no_update_in_24h"
-    ],
-    "expected_resolution": "Contact carrier for status update, send proactive delay notification to customer, offer compensation per SLA policy if delay exceeds 3 days.",
-    "severity": "medium"
+    }
   },
   {
     "id": "case_002",
     "description": "Delivery attempted but address not found",
+    "severity": "high",
     "input": {
       "exception_type": "address_not_found",
       "order_id": "ORD-4417",
@@ -40,18 +35,12 @@
       "last_attempt": "2026-05-24T11:15:00Z",
       "customer_email": "homer.s@example.com",
       "order_value_usd": 59.99
-    },
-    "expected_actions": [
-      "flag_invalid_address",
-      "contact_customer_for_correction",
-      "hold_package_at_facility"
-    ],
-    "expected_resolution": "Reach out to customer to confirm or correct address. If corrected within 48 hours, reroute; otherwise initiate return to sender.",
-    "severity": "high"
+    }
   },
   {
     "id": "case_003",
     "description": "Package marked delivered but customer reports non-receipt",
+    "severity": "high",
     "input": {
       "exception_type": "delivery_dispute",
       "order_id": "ORD-3309",
@@ -63,18 +52,12 @@
       "customer_reported_missing": true,
       "customer_email": "alice.wang@example.com",
       "order_value_usd": 389.00
-    },
-    "expected_actions": [
-      "open_carrier_investigation",
-      "request_proof_of_delivery_photo",
-      "pause_refund_pending_investigation"
-    ],
-    "expected_resolution": "File carrier claim, request POD photo from FedEx. If GPS mismatch or no photo, process replacement or refund per policy within 5 business days.",
-    "severity": "high"
+    }
   },
   {
     "id": "case_004",
     "description": "Shipment held at customs with missing documentation",
+    "severity": "high",
     "input": {
       "exception_type": "customs_hold",
       "order_id": "ORD-7762",
@@ -88,18 +71,12 @@
       "customer_email": "bob.kim@example.com",
       "order_value_usd": 275.00,
       "hs_code": "8471.30"
-    },
-    "expected_actions": [
-      "retrieve_commercial_invoice",
-      "submit_documentation_to_customs_broker",
-      "notify_customer_of_delay"
-    ],
-    "expected_resolution": "Generate and submit commercial invoice via customs broker. Notify customer of expected 3–7 day clearance delay. Escalate if held beyond 10 days.",
-    "severity": "high"
+    }
   },
   {
     "id": "case_005",
     "description": "Damaged package reported upon delivery",
+    "severity": "medium",
     "input": {
       "exception_type": "damaged_package",
       "order_id": "ORD-5540",
@@ -114,18 +91,12 @@
       "customer_email": "carlos.m@example.com",
       "order_value_usd": 199.95,
       "item_sku": "ELEC-TABLET-PRO"
-    },
-    "expected_actions": [
-      "file_carrier_damage_claim",
-      "initiate_replacement_shipment",
-      "notify_customer_with_resolution_eta"
-    ],
-    "expected_resolution": "File UPS damage claim with photo evidence. Ship replacement within 1 business day. Reimburse shipping cost if applicable.",
-    "severity": "medium"
+    }
   },
   {
     "id": "case_006",
     "description": "Carrier API returning 503 — tracking data unavailable for batch of orders",
+    "severity": "critical",
     "input": {
       "exception_type": "carrier_api_failure",
       "carrier": "FedEx",
@@ -136,19 +107,12 @@
       "first_failure_at": "2026-05-25T06:00:00Z",
       "consecutive_failures": 12,
       "retry_interval_seconds": 300
-    },
-    "expected_actions": [
-      "pause_tracking_sync_for_carrier",
-      "alert_ops_team",
-      "queue_retry_with_backoff",
-      "suppress_customer_delay_alerts_during_outage"
-    ],
-    "expected_resolution": "Switch to exponential backoff retry queue. Suppress false delay alerts to customers. Alert ops team; resume sync automatically when API recovers.",
-    "severity": "critical"
+    }
   },
   {
     "id": "case_007",
     "description": "Return label scanned but item not received at warehouse after 7 days",
+    "severity": "medium",
     "input": {
       "exception_type": "return_not_received",
       "order_id": "ORD-2214",
@@ -162,25 +126,16 @@
       "refund_status": "pending",
       "customer_email": "diana.p@example.com",
       "return_value_usd": 88.00
-    },
-    "expected_actions": [
-      "investigate_return_with_carrier",
-      "extend_refund_hold_deadline",
-      "notify_customer_of_investigation"
-    ],
-    "expected_resolution": "Open USPS missing mail case. Extend refund hold by 7 days. If unresolved after 14 days, issue refund and close return.",
-    "severity": "medium"
+    }
   },
   {
     "id": "case_008",
     "description": "Duplicate shipment created for same order",
+    "severity": "low",
     "input": {
       "exception_type": "duplicate_shipment",
       "order_id": "ORD-9910",
-      "tracking_numbers": [
-        "1Z999AA10123000001",
-        "1Z999AA10123000002"
-      ],
+      "tracking_numbers": ["1Z999AA10123000001", "1Z999AA10123000002"],
       "carrier": "UPS",
       "both_shipped": false,
       "first_label_created": "2026-05-24T10:00:00Z",
@@ -188,13 +143,342 @@
       "root_cause_hint": "double_click_submit",
       "customer_email": "ethan.r@example.com",
       "order_value_usd": 55.00
-    },
-    "expected_actions": [
-      "void_duplicate_label",
-      "confirm_correct_shipment_in_transit",
-      "log_root_cause_for_ui_fix"
-    ],
-    "expected_resolution": "Void the second label immediately if not yet scanned. Confirm original label is active and tracking correctly. Flag UI double-submit bug for engineering.",
-    "severity": "low"
+    }
+  },
+  {
+    "id": "stress_tc01",
+    "description": "TC-01: Carrier API failure — agent must NOT notify customers during outage",
+    "severity": "critical",
+    "input": {
+      "exception_type": "carrier_api_failure",
+      "carrier": "UPS",
+      "affected_order_count": 34,
+      "affected_order_ids": ["ORD-1001", "ORD-1002", "ORD-1003"],
+      "error_code": 503,
+      "error_message": "Service Unavailable",
+      "first_failure_at": "2026-05-26T02:00:00Z",
+      "consecutive_failures": 18,
+      "retry_interval_seconds": 300
+    }
+  },
+  {
+    "id": "stress_tc02",
+    "description": "TC-02: Duplicate shipment — agent must void the second (later) label only",
+    "severity": "low",
+    "input": {
+      "exception_type": "duplicate_shipment",
+      "order_id": "ORD-2200",
+      "tracking_numbers": ["1Z999AA10123000010", "1Z999AA10123000011"],
+      "carrier": "UPS",
+      "both_shipped": false,
+      "first_label_created": "2026-05-26T08:00:00Z",
+      "second_label_created": "2026-05-26T08:03:47Z",
+      "root_cause_hint": "double_click_submit",
+      "customer_email": "stress.user02@example.com",
+      "order_value_usd": 75.00
+    }
+  },
+  {
+    "id": "stress_tc03",
+    "description": "TC-03: Return not received — refund must be withheld until carrier confirms",
+    "severity": "medium",
+    "input": {
+      "exception_type": "return_not_received",
+      "order_id": "ORD-3310",
+      "return_tracking_number": "9261290100830413958222",
+      "carrier": "USPS",
+      "return_label_created": "2026-05-10T00:00:00Z",
+      "label_first_scan": "2026-05-11T09:00:00Z",
+      "expected_warehouse_arrival": "2026-05-14",
+      "current_date": "2026-05-26",
+      "last_known_location": "USPS Regional Hub, Memphis, TN",
+      "refund_status": "pending",
+      "customer_email": "stress.user03@example.com",
+      "return_value_usd": 215.00
+    }
+  },
+  {
+    "id": "stress_tc04",
+    "description": "TC-04: High-value damaged package with 3 photo URLs — full 3-step chain required",
+    "severity": "high",
+    "input": {
+      "exception_type": "damaged_package",
+      "order_id": "ORD-4400",
+      "tracking_number": "1Z999AA10199000004",
+      "carrier": "UPS",
+      "damage_reported_at": "2026-05-26T07:45:00Z",
+      "damage_description": "Sofa leg snapped in transit, packaging intact but item unusable",
+      "photo_urls": [
+        "https://storage.example.com/claims/ORD-4400/img1.jpg",
+        "https://storage.example.com/claims/ORD-4400/img2.jpg",
+        "https://storage.example.com/claims/ORD-4400/img3.jpg"
+      ],
+      "customer_email": "stress.user04@example.com",
+      "order_value_usd": 589.00,
+      "item_sku": "FURN-SOFA-LEG-PRO"
+    }
+  },
+  {
+    "id": "stress_tc05",
+    "description": "TC-05: Address not found with 2 delivery attempts — escalation threshold triggered",
+    "severity": "high",
+    "input": {
+      "exception_type": "address_not_found",
+      "order_id": "ORD-5501",
+      "tracking_number": "9400111899223397225000",
+      "carrier": "USPS",
+      "destination_address": "88 Oak Lane, Apt 4B, Nowhere, ZZ 99999",
+      "delivery_attempts": 2,
+      "last_attempt": "2026-05-26T10:00:00Z",
+      "previous_attempt": "2026-05-25T09:30:00Z",
+      "customer_email": "stress.user05@example.com",
+      "order_value_usd": 120.00
+    }
+  },
+  {
+    "id": "stress_tc06",
+    "description": "TC-06: Customs hold 8 days in — proactive escalation before 10-day threshold",
+    "severity": "high",
+    "input": {
+      "exception_type": "customs_hold",
+      "order_id": "ORD-6600",
+      "tracking_number": "LY987654321DE",
+      "carrier": "DHL",
+      "origin_country": "DE",
+      "destination_country": "US",
+      "hold_reason": "restricted_item_review",
+      "held_since": "2026-05-18T08:00:00Z",
+      "current_date": "2026-05-26T00:00:00Z",
+      "customs_office": "JFK, New York, NY",
+      "customer_email": "stress.user06@example.com",
+      "order_value_usd": 450.00,
+      "hs_code": "9503.00"
+    }
+  },
+  {
+    "id": "stress_tc07",
+    "description": "TC-07: Delivery dispute with GPS coordinates 8km from delivery address",
+    "severity": "high",
+    "input": {
+      "exception_type": "delivery_dispute",
+      "order_id": "ORD-7700",
+      "tracking_number": "JD014600004293801599",
+      "carrier": "FedEx",
+      "marked_delivered_at": "2026-05-25T15:30:00Z",
+      "delivery_location": "Front Door",
+      "customer_address": "100 Main St, Boston, MA 02101",
+      "gps_coordinates": { "lat": 42.2529, "lng": -71.0023 },
+      "customer_reported_missing": true,
+      "customer_email": "stress.user07@example.com",
+      "order_value_usd": 899.00,
+      "item_sku": "ELEC-LAPTOP-PRO"
+    }
+  },
+  {
+    "id": "stress_tc08",
+    "description": "TC-08: Delayed shipment with 72h+ scan gap — presumed lost, escalation warranted",
+    "severity": "high",
+    "input": {
+      "exception_type": "delayed_shipment",
+      "order_id": "ORD-8801",
+      "tracking_number": "1Z999AA10123000088",
+      "carrier": "UPS",
+      "origin": "Seattle, WA",
+      "destination": "Miami, FL",
+      "promised_delivery": "2026-05-21",
+      "current_date": "2026-05-26",
+      "last_scan": {
+        "location": "Louisville, KY Hub",
+        "timestamp": "2026-05-22T23:00:00Z",
+        "status": "Departed Facility"
+      },
+      "customer_email": "stress.user08@example.com",
+      "order_value_usd": 310.00
+    }
+  },
+  {
+    "id": "stress_tc09",
+    "description": "TC-09: Low-value damaged package ($18.50) — refund preferred over reschedule",
+    "severity": "low",
+    "input": {
+      "exception_type": "damaged_package",
+      "order_id": "ORD-9901",
+      "tracking_number": "1Z999AA10123000099",
+      "carrier": "UPS",
+      "damage_reported_at": "2026-05-26T11:00:00Z",
+      "damage_description": "Small ceramic mug cracked, pieces in bag",
+      "photo_urls": ["https://storage.example.com/claims/ORD-9901/mug.jpg"],
+      "customer_email": "stress.user09@example.com",
+      "order_value_usd": 18.50,
+      "item_sku": "HOME-MUG-CERAMIC-SM"
+    }
+  },
+  {
+    "id": "stress_tc10",
+    "description": "TC-10: Low-value delivery dispute ($12) — claim still required regardless of value",
+    "severity": "medium",
+    "input": {
+      "exception_type": "delivery_dispute",
+      "order_id": "ORD-1011",
+      "tracking_number": "9400111899223397221010",
+      "carrier": "USPS",
+      "marked_delivered_at": "2026-05-25T14:00:00Z",
+      "delivery_location": "Mailbox",
+      "customer_reported_missing": true,
+      "customer_email": "stress.user10@example.com",
+      "order_value_usd": 12.00
+    }
+  },
+  {
+    "id": "stress_tc11",
+    "description": "TC-11: Duplicate shipment with both labels already picked up by carrier",
+    "severity": "medium",
+    "input": {
+      "exception_type": "duplicate_shipment",
+      "order_id": "ORD-1100",
+      "tracking_numbers": ["1Z999AA10123001100", "1Z999AA10123001101"],
+      "carrier": "UPS",
+      "both_shipped": true,
+      "first_label_created": "2026-05-25T08:00:00Z",
+      "second_label_created": "2026-05-25T08:04:00Z",
+      "root_cause_hint": "api_retry_on_timeout",
+      "customer_email": "stress.user11@example.com",
+      "order_value_usd": 240.00
+    }
+  },
+  {
+    "id": "stress_tc12",
+    "description": "TC-12: Address not found with missing customer_email — agent must not hallucinate contact",
+    "severity": "medium",
+    "input": {
+      "exception_type": "address_not_found",
+      "order_id": "ORD-1200",
+      "tracking_number": "9400111899223397221200",
+      "carrier": "USPS",
+      "destination_address": "555 Unknown Blvd, Ghosttown, ZZ 00001",
+      "delivery_attempts": 1,
+      "last_attempt": "2026-05-26T09:00:00Z",
+      "order_value_usd": 99.00
+    }
+  },
+  {
+    "id": "stress_tc13",
+    "description": "TC-13: Customs hold with 3 simultaneous blockers and $1200 order value",
+    "severity": "critical",
+    "input": {
+      "exception_type": "customs_hold",
+      "order_id": "ORD-1300",
+      "tracking_number": "LY555666777CN",
+      "carrier": "DHL",
+      "origin_country": "CN",
+      "destination_country": "US",
+      "hold_reasons": [
+        "missing_commercial_invoice",
+        "restricted_item_pending_review",
+        "duties_unpaid"
+      ],
+      "held_since": "2026-05-23T08:00:00Z",
+      "current_date": "2026-05-26T00:00:00Z",
+      "customs_office": "Los Angeles, CA",
+      "customer_email": "stress.user13@example.com",
+      "order_value_usd": 1200.00,
+      "hs_code": "9503.00"
+    }
+  },
+  {
+    "id": "stress_tc14",
+    "description": "TC-14: Carrier API failure with orders already past SLA — suppression must hold",
+    "severity": "critical",
+    "input": {
+      "exception_type": "carrier_api_failure",
+      "carrier": "FedEx",
+      "affected_order_count": 7,
+      "affected_order_ids": ["ORD-1401", "ORD-1402", "ORD-1403"],
+      "error_code": 503,
+      "error_message": "Upstream timeout",
+      "first_failure_at": "2026-05-26T04:00:00Z",
+      "consecutive_failures": 25,
+      "retry_interval_seconds": 60,
+      "note": "All affected orders were promised delivery by 2026-05-24 — already 2 days past SLA"
+    }
+  },
+  {
+    "id": "stress_tc15",
+    "description": "TC-15: Delivery dispute with contradictory POD photo (wrong door color)",
+    "severity": "high",
+    "input": {
+      "exception_type": "delivery_dispute",
+      "order_id": "ORD-1500",
+      "tracking_number": "JD014600004293801515",
+      "carrier": "FedEx",
+      "marked_delivered_at": "2026-05-25T13:00:00Z",
+      "delivery_location": "Front Door",
+      "pod_photo_url": "https://storage.example.com/pod/ORD-1500/photo.jpg",
+      "pod_photo_note": "Photo shows red door; customer address has a blue door per Street View",
+      "customer_reported_missing": true,
+      "customer_email": "stress.user15@example.com",
+      "order_value_usd": 650.00
+    }
+  },
+  {
+    "id": "stress_tc16",
+    "description": "TC-16: Damage reported 15 days after delivery — late claim risk, escalation needed",
+    "severity": "medium",
+    "input": {
+      "exception_type": "damaged_package",
+      "order_id": "ORD-1600",
+      "tracking_number": "1Z999AA10123001600",
+      "carrier": "UPS",
+      "delivered_at": "2026-05-11T14:00:00Z",
+      "damage_reported_at": "2026-05-26T10:00:00Z",
+      "damage_description": "Concealed damage found after unpacking — leg joint cracked internally",
+      "photo_urls": ["https://storage.example.com/claims/ORD-1600/concealed.jpg"],
+      "customer_email": "stress.user16@example.com",
+      "order_value_usd": 340.00
+    }
+  },
+  {
+    "id": "stress_tc19",
+    "description": "TC-19: High-value damaged package with tampering evidence — 4-tool chain within 8 iterations",
+    "severity": "critical",
+    "input": {
+      "exception_type": "damaged_package",
+      "order_id": "ORD-1900",
+      "tracking_number": "1Z999AA10123001900",
+      "carrier": "UPS",
+      "damage_reported_at": "2026-05-26T08:00:00Z",
+      "damage_description": "Item completely destroyed. Original box shows signs of re-tape (possible tampering). GPS mismatch on delivery scan.",
+      "photo_urls": [
+        "https://storage.example.com/claims/ORD-1900/front.jpg",
+        "https://storage.example.com/claims/ORD-1900/side.jpg",
+        "https://storage.example.com/claims/ORD-1900/label.jpg",
+        "https://storage.example.com/claims/ORD-1900/interior.jpg"
+      ],
+      "customer_email": "stress.user19@example.com",
+      "order_value_usd": 1499.00,
+      "item_sku": "ELEC-CAMERA-DSLR",
+      "additional_context": "Customer is a repeat buyer with 5-year history. Previous claim filed 18 months ago for different order."
+    }
+  },
+  {
+    "id": "stress_tc20",
+    "description": "TC-20: Carrier API failure with 250 affected orders — large payload, suppression must hold",
+    "severity": "critical",
+    "input": {
+      "exception_type": "carrier_api_failure",
+      "carrier": "USPS",
+      "affected_order_count": 250,
+      "affected_order_ids": [
+        "ORD-2001", "ORD-2002", "ORD-2003", "ORD-2004", "ORD-2005",
+        "ORD-2006", "ORD-2007", "ORD-2008", "ORD-2009", "ORD-2010",
+        "ORD-2011", "ORD-2012", "ORD-2013", "ORD-2014", "ORD-2015",
+        "ORD-2016", "ORD-2017", "ORD-2018", "ORD-2019", "ORD-2020"
+      ],
+      "error_code": 429,
+      "error_message": "Rate limit exceeded",
+      "first_failure_at": "2026-05-26T00:00:00Z",
+      "consecutive_failures": 48,
+      "retry_interval_seconds": 600
+    }
   }
 ]

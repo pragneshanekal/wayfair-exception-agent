@@ -18,8 +18,9 @@ Exception type guidance:
 
 Always use the exact IDs, emails, and tracking numbers from the case input.`;
 
-// Complex cases benefit from deeper reasoning; simple ones are faster without it.
-const THINKING_CASE_TYPES = new Set(["delivery_dispute", "customs_hold", "damaged_package"]);
+// Thinking mode causes Qwen3 to emit reasoning as text content (finish_reason: "stop")
+// instead of tool_calls — disabling until Subconscious resolves thinking + tool_calls interop.
+const THINKING_CASE_TYPES = new Set<string>([]);
 
 // Cap tokens per case type — simple cases need far fewer output tokens.
 const MAX_TOKENS_BY_TYPE: Record<string, number> = {

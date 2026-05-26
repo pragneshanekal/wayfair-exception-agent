@@ -689,19 +689,24 @@ const SYSTEM_PROMPT = `You are a Wayfair logistics exception-resolution agent...
         `;
       }
 
+      function escHtml(s) {
+        return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+      }
+
       function renderTimeline(trail) {
         return trail.map(e => {
           const icon = e.type === "tool_call" ? "→" : e.type === "tool_result" ? "←" : "✓";
           const label = e.type === "tool_call" ? `Called ${e.tool}` : e.type === "tool_result" ? `${e.tool} returned` : "Final resolution";
-          const body = e.type === "tool_call" ? JSON.stringify(e.args, null, 2)
+          const rawBody = e.type === "tool_call" ? JSON.stringify(e.args, null, 2)
             : e.type === "tool_result" ? JSON.stringify(e.result, null, 2)
             : (e.text || "");
+          const body = escHtml(rawBody.slice(0, 600));
           const time = new Date(e.timestamp).toLocaleTimeString();
           return `<div class="t-entry">
             <div class="t-icon ${e.type}">${icon}</div>
             <div class="t-body">
               <div class="t-label ${e.type}">${label}</div>
-              <div class="t-content">${body.slice(0, 500)}</div>
+              <div class="t-content">${body}</div>
               <div class="t-time">${time}</div>
             </div>
           </div>`;
