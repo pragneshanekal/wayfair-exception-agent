@@ -3,10 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hackathon Agent Dashboard</title>
+    <title>Wayfair Exception Agent</title>
     <style>
       :root {
-        color-scheme: light dark;
         --bg: #0b0d12;
         --panel: #141824;
         --border: #2a3144;
@@ -14,722 +13,514 @@
         --muted: #9aa6bf;
         --accent: #6ee7a8;
         --accent-dim: #1f3d2f;
+        --blue: #60a5fa;
+        --blue-dim: #1a2a4a;
+        --purple: #c084fc;
         --danger: #f87171;
+        --danger-dim: #3f1d1d;
+        --yellow: #fbbf24;
         font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
       }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: radial-gradient(circle at top, #172033, var(--bg)); color: var(--text); min-height: 100vh; }
 
-      * {
-        box-sizing: border-box;
-      }
+      /* ── Layout ── */
+      .wrap { max-width: 1200px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
 
-      body {
-        margin: 0;
-        background: radial-gradient(circle at top, #172033, var(--bg));
-        color: var(--text);
-        min-height: 100vh;
-      }
+      /* ── Header ── */
+      .hero { margin-bottom: 2rem; padding: 2rem; background: var(--panel); border: 1px solid var(--border); border-radius: 16px; display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; }
+      .hero-text { flex: 1; min-width: 260px; }
+      .hero h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.4rem; }
+      .hero h1 span { color: var(--accent); }
+      .hero p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; max-width: 560px; }
+      .hero-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.85rem; }
+      .badge { font-size: 0.72rem; padding: 0.2rem 0.6rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+      .badge.green { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+      .ntfy-box { background: #0f131c; border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; min-width: 220px; }
+      .ntfy-box h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.6rem; }
+      .ntfy-channel { font-size: 0.82rem; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.5rem; }
+      .ntfy-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+      .ntfy-dot.ops { background: var(--danger); }
+      .ntfy-dot.cust { background: var(--blue); }
+      .ntfy-hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.5rem; }
 
-      .wrap {
-        max-width: 1100px;
-        margin: 0 auto;
-        padding: 2rem 1.25rem 4rem;
-      }
+      /* ── Tabs ── */
+      .tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+      .tab { padding: 0.6rem 1rem; font-size: 0.85rem; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; border-top: none; border-left: none; border-right: none; font: inherit; }
+      .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+      .tab-panel { display: none; }
+      .tab-panel.active { display: block; }
 
-      header {
-        margin-bottom: 2rem;
-      }
+      /* ── Panels ── */
+      .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; }
+      .panel + .panel { margin-top: 1rem; }
+      h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 1rem; }
 
-      h1 {
-        margin: 0 0 0.5rem;
-        font-size: 1.75rem;
-      }
+      /* ── Forms ── */
+      label { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 0.3rem; }
+      input, textarea, select { width: 100%; background: #0f131c; border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 0.65rem 0.75rem; font: inherit; margin-bottom: 0.85rem; }
+      textarea { resize: vertical; }
+      .row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+      button { border: none; border-radius: 10px; padding: 0.65rem 1.1rem; font: inherit; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+      button.primary { background: var(--accent); color: #052e1a; }
+      button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+      button.demo-btn { background: linear-gradient(135deg, #6ee7a8, #60a5fa); color: #0b0d12; padding: 0.75rem 1.5rem; font-size: 0.95rem; }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .status-msg { font-size: 0.83rem; color: var(--muted); }
+      .status-msg.error { color: var(--danger); }
 
-      .subtitle {
-        color: var(--muted);
-        margin: 0;
-      }
+      /* ── Demo panel ── */
+      .demo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.6rem; margin-bottom: 1rem; }
+      .demo-case-btn { background: #0f131c; border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 0.6rem 0.75rem; font: inherit; cursor: pointer; font-size: 0.82rem; text-align: left; transition: border-color 0.15s; }
+      .demo-case-btn:hover { border-color: var(--accent); }
+      .demo-case-btn .exc-type { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; }
 
-      .grid {
-        display: grid;
-        gap: 1rem;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      }
+      /* ── Case cards ── */
+      .cases-list { display: flex; flex-direction: column; gap: 0.75rem; }
+      .case-card { background: #0f131c; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color 0.2s; }
+      .case-card.processing { border-color: var(--blue); }
+      .case-card.resolved { border-color: var(--accent); }
+      .case-card.failed { border-color: var(--danger); }
+      .case-header { display: flex; justify-content: space-between; align-items: center; padding: 0.9rem 1rem; cursor: pointer; gap: 1rem; flex-wrap: wrap; }
+      .case-header:hover { background: rgba(255,255,255,0.02); }
+      .case-meta { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+      .case-id { font-size: 0.82rem; font-weight: 600; font-family: monospace; }
+      .exc-badge { font-size: 0.72rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: var(--blue-dim); color: var(--blue); }
+      .sev-badge { font-size: 0.7rem; padding: 0.12rem 0.45rem; border-radius: 999px; }
+      .sev-badge.critical { background: var(--danger-dim); color: var(--danger); }
+      .sev-badge.high { background: #3d2a10; color: var(--yellow); }
+      .sev-badge.medium { background: var(--accent-dim); color: var(--accent); }
+      .sev-badge.low { background: #1a1f2e; color: var(--muted); }
+      .status-chip { font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+      .status-chip.pending    { background: #1a1f2e; color: var(--muted); }
+      .status-chip.processing { background: var(--blue-dim); color: var(--blue); display: flex; align-items: center; gap: 0.35rem; }
+      .status-chip.resolved   { background: var(--accent-dim); color: var(--accent); }
+      .status-chip.failed     { background: var(--danger-dim); color: var(--danger); }
+      .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); animation: pulse 1.2s ease-in-out infinite; }
+      @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
 
-      .panel {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 1.25rem;
-      }
+      /* ── Resolution ── */
+      .case-resolution { padding: 0 1rem 0.75rem; font-size: 0.83rem; color: var(--muted); line-height: 1.5; }
 
-      h2 {
-        margin: 0 0 1rem;
-        font-size: 1rem;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: var(--muted);
-      }
-
-      label {
-        display: block;
-        font-size: 0.85rem;
-        color: var(--muted);
-        margin-bottom: 0.35rem;
-      }
-
-      input,
-      textarea,
-      select {
-        width: 100%;
-        background: #0f131c;
-        border: 1px solid var(--border);
-        color: var(--text);
-        border-radius: 10px;
-        padding: 0.65rem 0.75rem;
-        font: inherit;
-        margin-bottom: 0.85rem;
-      }
-
-      textarea {
-        min-height: 90px;
-        resize: vertical;
-      }
-
-      .row {
-        display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-      }
-
-      button {
-        border: none;
-        border-radius: 10px;
-        padding: 0.7rem 1rem;
-        font: inherit;
-        cursor: pointer;
-        background: var(--accent);
-        color: #052e1a;
-        font-weight: 600;
-      }
-
-      button.secondary {
-        background: transparent;
-        color: var(--text);
-        border: 1px solid var(--border);
-      }
-
-      button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-
-      .status {
-        font-size: 0.85rem;
-        color: var(--muted);
-        min-height: 1.25rem;
-      }
-
-      .status.error {
-        color: var(--danger);
-      }
-
-      pre {
-        background: #0f131c;
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 0.85rem;
-        overflow: auto;
-        white-space: pre-wrap;
-        word-break: break-word;
-        font-size: 0.85rem;
-        max-height: 320px;
-      }
-
-      .run {
-        border-top: 1px solid var(--border);
-        padding: 0.85rem 0;
-      }
-
-      .run:first-child {
-        border-top: none;
-        padding-top: 0;
-      }
-
-      .run-meta {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-        font-size: 0.8rem;
-        color: var(--muted);
-        margin-bottom: 0.35rem;
-      }
-
-      .pill {
-        background: var(--accent-dim);
-        color: var(--accent);
-        padding: 0.1rem 0.45rem;
-        border-radius: 999px;
-      }
-
-      .pill.failed {
-        background: #3f1d1d;
-        color: var(--danger);
-      }
-
-      .tools {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
-        margin-bottom: 0.85rem;
-      }
-
-      .tool-chip {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: 999px;
-        border: 1px solid var(--border);
-        color: var(--muted);
-      }
-
-      .tool-chip.active {
-        border-color: var(--accent);
-        color: var(--accent);
-        background: var(--accent-dim);
-      }
-
-      /* Case cards */
-      .case-card {
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 1rem;
-        margin-bottom: 0.75rem;
-        background: #0f131c;
-        cursor: pointer;
-      }
-      .case-card:last-child { margin-bottom: 0; }
-      .case-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-bottom: 0.5rem;
-      }
-      .case-id { font-size: 0.85rem; font-weight: 600; }
-      .case-type { font-size: 0.75rem; color: var(--muted); }
-      .status-pill {
-        font-size: 0.75rem;
-        padding: 0.15rem 0.5rem;
-        border-radius: 999px;
-        font-weight: 600;
-      }
-      .status-pill.pending    { background: #1e2a1e; color: #9aa6bf; }
-      .status-pill.processing { background: #1e2a3a; color: #60a5fa; }
-      .status-pill.resolved   { background: var(--accent-dim); color: var(--accent); }
-      .status-pill.failed     { background: #3f1d1d; color: var(--danger); }
-      .case-resolution {
-        font-size: 0.82rem;
-        color: var(--muted);
-        margin-top: 0.35rem;
-        white-space: pre-wrap;
-        word-break: break-word;
-      }
-      /* Audit trail */
-      .audit-trail { margin-top: 0.85rem; display: none; }
+      /* ── Audit trail ── */
+      .audit-trail { border-top: 1px solid var(--border); padding: 1rem; display: none; }
       .audit-trail.open { display: block; }
-      .audit-entry {
-        font-size: 0.78rem;
-        padding: 0.45rem 0.65rem;
-        border-left: 2px solid var(--border);
-        margin-bottom: 0.4rem;
-        color: var(--muted);
-      }
-      .audit-entry.tool_call   { border-color: #60a5fa; }
-      .audit-entry.tool_result { border-color: var(--accent); }
-      .audit-entry.llm_response{ border-color: #c084fc; }
-      .audit-label {
-        font-size: 0.72rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        margin-bottom: 0.2rem;
-      }
-      .audit-entry.tool_call .audit-label   { color: #60a5fa; }
-      .audit-entry.tool_result .audit-label { color: var(--accent); }
-      .audit-entry.llm_response .audit-label{ color: #c084fc; }
-      .audit-body { white-space: pre-wrap; word-break: break-word; }
+      .audit-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.75rem; }
+      .timeline { display: flex; flex-direction: column; gap: 0.5rem; }
+      .t-entry { display: flex; gap: 0.75rem; align-items: flex-start; }
+      .t-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; flex-shrink: 0; margin-top: 0.1rem; }
+      .t-icon.tool_call   { background: var(--blue-dim); color: var(--blue); }
+      .t-icon.tool_result { background: var(--accent-dim); color: var(--accent); }
+      .t-icon.llm_response{ background: #2a1f3d; color: var(--purple); }
+      .t-body { flex: 1; min-width: 0; }
+      .t-label { font-size: 0.78rem; font-weight: 600; margin-bottom: 0.2rem; }
+      .t-label.tool_call   { color: var(--blue); }
+      .t-label.tool_result { color: var(--accent); }
+      .t-label.llm_response{ color: var(--purple); }
+      .t-content { font-size: 0.78rem; color: var(--muted); background: #0b0d12; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.75rem; white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow-y: auto; }
+      .t-time { font-size: 0.68rem; color: #4a5568; margin-top: 0.2rem; }
+
+      /* ── Tools chips ── */
+      .tools-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.85rem; }
+      .tool-chip { font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); cursor: pointer; }
+      .tool-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+      pre { background: #0f131c; border: 1px solid var(--border); border-radius: 10px; padding: 0.85rem; overflow: auto; white-space: pre-wrap; word-break: break-word; font-size: 0.82rem; max-height: 260px; }
+      .run { border-top: 1px solid var(--border); padding: 0.75rem 0; }
+      .run:first-child { border-top: none; padding-top: 0; }
+      .run-meta { display: flex; gap: 0.5rem; flex-wrap: wrap; font-size: 0.78rem; color: var(--muted); margin-bottom: 0.3rem; }
+      .pill { background: var(--accent-dim); color: var(--accent); padding: 0.1rem 0.45rem; border-radius: 999px; }
+      .pill.failed { background: var(--danger-dim); color: var(--danger); }
+      .empty-state { text-align: center; padding: 2.5rem 1rem; color: var(--muted); font-size: 0.88rem; }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <header>
-        <h1>Hackathon Agent</h1>
-        <p class="subtitle">
-          Cloudflare Worker + Subconscious API. Trigger via button, API, webhook, or cron.
-        </p>
-      </header>
 
-      <div class="grid">
-        <section class="panel">
-          <h2>Agent Logic</h2>
-          <label for="name">Agent name</label>
-          <input id="name" />
-
-          <label for="systemPrompt">System prompt</label>
-          <textarea id="systemPrompt"></textarea>
-
-          <label for="instructions">Default instructions</label>
-          <textarea id="instructions"></textarea>
-
-          <label for="cronInstructions">Cron instructions</label>
-          <textarea id="cronInstructions"></textarea>
-
-          <label for="enabledTools">Enabled tools</label>
-          <div id="tools" class="tools"></div>
-
-          <label>
-            <input type="checkbox" id="enableThinking" />
-            Enable thinking (slower, shows reasoning preamble)
-          </label>
-
-          <div class="row">
-            <button id="saveConfig">Save config</button>
+      <!-- Hero -->
+      <div class="hero">
+        <div class="hero-text">
+          <h1>Wayfair <span>Exception Agent</span></h1>
+          <p>An AI agent built on Cloudflare Workers + Durable Objects that autonomously resolves shipment exceptions — contacting carriers, filing claims, rescheduling deliveries, and notifying customers in real time.</p>
+          <div class="hero-badges">
+            <span class="badge green">Cloudflare Workers</span>
+            <span class="badge green">Durable Objects</span>
+            <span class="badge green">Subconscious LLM</span>
+            <span class="badge">8 Exception Types</span>
+            <span class="badge">7 Tools</span>
+            <span class="badge">Live Push Notifications</span>
           </div>
-          <p id="configStatus" class="status"></p>
-        </section>
-
-        <section class="panel">
-          <h2>Run Agent</h2>
-          <label for="runInstructions">Instructions for this run</label>
-          <textarea id="runInstructions" placeholder="Leave blank to use default instructions"></textarea>
-
-          <div class="row">
-            <button id="runAgent">Run now (button trigger)</button>
-            <button id="refreshRuns" class="secondary">Refresh runs</button>
+        </div>
+        <div class="ntfy-box">
+          <h3>Live Notifications</h3>
+          <div class="ntfy-channel">
+            <span class="ntfy-dot ops"></span>
+            <span>ntfy.sh/<strong>wayfair-logistics-ops</strong></span>
           </div>
-          <p id="runStatus" class="status"></p>
-
-          <h2 style="margin-top: 1.5rem">Latest output</h2>
-          <pre id="latestOutput">No runs yet.</pre>
-        </section>
+          <div class="ntfy-channel">
+            <span class="ntfy-dot cust"></span>
+            <span>ntfy.sh/<strong>wayfair-logistics-customer</strong></span>
+          </div>
+          <p class="ntfy-hint">Subscribe in the ntfy app or browser to see push notifications fire live when the agent escalates or notifies customers.</p>
+        </div>
       </div>
 
-      <section class="panel" style="margin-top: 1rem">
-        <h2>Recent runs</h2>
-        <div id="runs"></div>
-      </section>
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('demo')">Demo</button>
+        <button class="tab" onclick="switchTab('cases')">All Cases</button>
+        <button class="tab" onclick="switchTab('config')">Config</button>
+      </div>
 
-      <!-- ── Exception Case Submission ─────────────────────────────── -->
-      <section class="panel" style="margin-top: 1rem">
-        <h2>Submit Exception Case</h2>
-        <div class="row" style="margin-bottom: 0.85rem; align-items: flex-end; flex-wrap: wrap; gap: 0.75rem;">
-          <div style="flex: 1; min-width: 200px;">
-            <label for="exceptionType">Exception type</label>
-            <select id="exceptionType">
-              <option value="delayed_shipment">delayed_shipment</option>
-              <option value="address_not_found">address_not_found</option>
-              <option value="delivery_dispute">delivery_dispute</option>
-              <option value="customs_hold">customs_hold</option>
-              <option value="damaged_package">damaged_package</option>
-              <option value="carrier_api_failure">carrier_api_failure</option>
-              <option value="return_not_received">return_not_received</option>
-              <option value="duplicate_shipment">duplicate_shipment</option>
-            </select>
+      <!-- ── DEMO TAB ── -->
+      <div id="tab-demo" class="tab-panel active">
+
+        <div class="panel">
+          <h2>Pick an exception type to demo</h2>
+          <div class="demo-grid" id="demoGrid"></div>
+          <div class="row" style="margin-bottom:1rem;">
+            <button class="demo-btn" id="runAllBtn" onclick="runAllDemo()">▶ Run all 8 cases</button>
+            <button class="secondary" onclick="clearCases()">Clear cases</button>
           </div>
-          <button id="populateSample" class="secondary" type="button" style="flex-shrink:0;">Load sample</button>
+          <p id="demoStatus" class="status-msg"></p>
         </div>
 
-        <label for="casePayload">Case payload (JSON)</label>
-        <textarea id="casePayload" style="min-height: 200px; font-family: monospace; font-size: 0.8rem;"></textarea>
-
-        <div class="row">
-          <button id="submitCase" type="button">Submit case</button>
-          <button id="refreshCases" class="secondary" type="button">Refresh cases</button>
+        <div class="panel" style="margin-top:1rem;">
+          <h2>Live case feed <span id="caseCount" style="font-size:0.75rem; margin-left:0.5rem;"></span></h2>
+          <div id="liveFeed"><div class="empty-state">Submit a case above to see the agent work in real time.</div></div>
         </div>
-        <p id="caseStatus" class="status"></p>
-      </section>
 
-      <!-- ── Exception Cases Grid ───────────────────────────────────── -->
-      <section class="panel" style="margin-top: 1rem">
-        <h2>Exception Cases</h2>
-        <div id="casesGrid"></div>
-      </section>
-    </div>
+      </div>
+
+      <!-- ── CASES TAB ── -->
+      <div id="tab-cases" class="tab-panel">
+        <div class="panel">
+          <div class="row" style="justify-content:space-between; margin-bottom:1rem;">
+            <h2 style="margin:0">All exception cases</h2>
+            <button class="secondary" onclick="refreshCases()">Refresh</button>
+          </div>
+          <div id="allCasesList"><div class="empty-state">No cases yet.</div></div>
+        </div>
+      </div>
+
+      <!-- ── CONFIG TAB ── -->
+      <div id="tab-config" class="tab-panel">
+        <div style="display:grid; gap:1rem; grid-template-columns: repeat(auto-fit, minmax(320px,1fr));">
+          <div class="panel">
+            <h2>Agent config</h2>
+            <label>Agent name</label><input id="name" />
+            <label>System prompt</label><textarea id="systemPrompt"></textarea>
+            <label>Default instructions</label><textarea id="instructions"></textarea>
+            <label>Cron instructions</label><textarea id="cronInstructions"></textarea>
+            <label>Enabled tools</label>
+            <div id="toolChips" class="tools-row"></div>
+            <label style="margin-top:0.5rem;"><input type="checkbox" id="enableThinking" /> Enable thinking</label>
+            <div class="row" style="margin-top:1rem;">
+              <button class="primary" id="saveConfig">Save config</button>
+            </div>
+            <p id="configStatus" class="status-msg" style="margin-top:0.5rem;"></p>
+          </div>
+
+          <div class="panel">
+            <h2>Manual run</h2>
+            <label>Instructions</label>
+            <textarea id="runInstructions" placeholder="Leave blank to use default instructions"></textarea>
+            <div class="row">
+              <button class="primary" id="runAgent">Run now</button>
+              <button class="secondary" id="refreshRuns">Refresh runs</button>
+            </div>
+            <p id="runStatus" class="status-msg" style="margin-top:0.5rem;"></p>
+            <h2 style="margin-top:1.5rem;">Latest output</h2>
+            <pre id="latestOutput">No runs yet.</pre>
+            <h2 style="margin-top:1.5rem;">Recent runs</h2>
+            <div id="runs"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /wrap -->
 
     <script>
+      // ── Utilities ────────────────────────────────────────────────
       const $ = (id) => document.getElementById(id);
-
-      let availableTools = [];
-
-      async function api(path, options = {}) {
-        const res = await fetch(path, {
-          headers: { "Content-Type": "application/json" },
-          ...options,
-        });
+      async function api(path, opts = {}) {
+        const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(data.error || `Request failed (${res.status})`);
-        }
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
         return data;
       }
 
-      function renderToolChips(config) {
-        const container = $("tools");
-        container.innerHTML = "";
-        for (const tool of availableTools) {
-          const chip = document.createElement("button");
-          chip.type = "button";
-          chip.className = "tool-chip" + (config.enabledTools.includes(tool.name) ? " active" : "");
-          chip.textContent = tool.name;
-          chip.title = tool.description;
-          chip.onclick = () => {
-            const enabled = new Set(config.enabledTools);
-            if (enabled.has(tool.name)) enabled.delete(tool.name);
-            else enabled.add(tool.name);
-            config.enabledTools = [...enabled];
-            renderToolChips(config);
-          };
-          container.appendChild(chip);
-        }
-        container.dataset.config = JSON.stringify(config);
+      function switchTab(name) {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+        $(`tab-${name}`).classList.add("active");
+        event.target.classList.add("active");
+        if (name === "cases") refreshCases();
       }
 
+      // ── Exception type metadata ───────────────────────────────────
+      const EXCEPTION_TYPES = [
+        { type: "delayed_shipment",    label: "Delayed Shipment",    sev: "medium",   tools: "contact_carrier → notify_customer" },
+        { type: "address_not_found",   label: "Address Not Found",   sev: "high",     tools: "notify_customer → escalate?" },
+        { type: "delivery_dispute",    label: "Delivery Dispute",    sev: "high",     tools: "file_claim → escalate" },
+        { type: "customs_hold",        label: "Customs Hold",        sev: "high",     tools: "escalate → notify_customer" },
+        { type: "damaged_package",     label: "Damaged Package",     sev: "medium",   tools: "file_claim → reschedule → notify" },
+        { type: "carrier_api_failure", label: "Carrier API Failure", sev: "critical", tools: "escalate (critical)" },
+        { type: "return_not_received", label: "Return Not Received", sev: "medium",   tools: "contact_carrier → escalate" },
+        { type: "duplicate_shipment",  label: "Duplicate Shipment",  sev: "low",      tools: "void_label" },
+      ];
+
+      const SAMPLES = {
+        delayed_shipment: { exception_type:"delayed_shipment", order_id:"ORD-8821", tracking_number:"1Z999AA10123456784", carrier:"UPS", origin:"Chicago, IL", destination:"Boston, MA", promised_delivery:"2026-05-22", current_date:today(), last_scan:{location:"Cleveland, OH",status:"In Transit"}, customer_email:"jane.doe@example.com", order_value_usd:142.50, severity:"medium" },
+        address_not_found: { exception_type:"address_not_found", order_id:"ORD-4417", tracking_number:"9400111899223397221318", carrier:"USPS", destination_address:"742 Evergreen Terr, Springfield, XX 00000", delivery_attempts:1, customer_email:"homer.s@example.com", order_value_usd:59.99, severity:"high" },
+        delivery_dispute: { exception_type:"delivery_dispute", order_id:"ORD-3309", tracking_number:"JD014600004293801520", carrier:"FedEx", marked_delivered_at:new Date().toISOString(), delivery_location:"Front Door", customer_reported_missing:true, customer_email:"alice.wang@example.com", order_value_usd:389.00, severity:"high" },
+        customs_hold: { exception_type:"customs_hold", order_id:"ORD-7762", tracking_number:"LY123456789CN", carrier:"DHL", origin_country:"CN", destination_country:"US", hold_reason:"missing_commercial_invoice", customer_email:"bob.kim@example.com", order_value_usd:275.00, severity:"high" },
+        damaged_package: { exception_type:"damaged_package", order_id:"ORD-5540", tracking_number:"1Z999AA10123456789", carrier:"UPS", damage_description:"Box crushed, item cracked", photo_urls:["https://storage.example.com/claims/ORD-5540/photo1.jpg"], customer_email:"carlos.m@example.com", order_value_usd:199.95, severity:"medium" },
+        carrier_api_failure: { exception_type:"carrier_api_failure", carrier:"FedEx", affected_order_count:34, error_code:503, error_message:"Service Unavailable", consecutive_failures:12, severity:"critical" },
+        return_not_received: { exception_type:"return_not_received", order_id:"ORD-2214", return_tracking_number:"9261290100830413958486", carrier:"USPS", refund_status:"pending", customer_email:"diana.p@example.com", return_value_usd:88.00, severity:"medium" },
+        duplicate_shipment: { exception_type:"duplicate_shipment", order_id:"ORD-9910", tracking_numbers:["1Z999AA10123000001","1Z999AA10123000002"], carrier:"UPS", both_shipped:false, customer_email:"ethan.r@example.com", order_value_usd:55.00, severity:"low" },
+      };
+
+      function today() { return new Date().toISOString().split("T")[0]; }
+
+      // ── Build demo grid ───────────────────────────────────────────
+      function buildDemoGrid() {
+        const grid = $("demoGrid");
+        grid.innerHTML = EXCEPTION_TYPES.map(e => `
+          <button class="demo-case-btn" onclick="submitDemoCase('${e.type}')">
+            <div>${e.label}</div>
+            <div class="exc-type">${e.tools}</div>
+          </button>
+        `).join("");
+      }
+
+      // ── Submit a case ─────────────────────────────────────────────
+      async function submitDemoCase(type) {
+        const payload = { id: `demo_${type}_${Date.now()}`, ...SAMPLES[type] };
+        $("demoStatus").textContent = `Submitting ${type}...`;
+        $("demoStatus").className = "status-msg";
+        try {
+          const res = await fetch("/case", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) });
+          const data = await res.json();
+          $("demoStatus").textContent = `Case ${data.caseId} submitted — agent is processing...`;
+          addLiveFeedCard(data.caseId, type, SAMPLES[type].severity);
+          pollCase(data.caseId);
+        } catch(e) {
+          $("demoStatus").textContent = e.message;
+          $("demoStatus").className = "status-msg error";
+        }
+      }
+
+      async function runAllDemo() {
+        $("runAllBtn").disabled = true;
+        $("demoStatus").textContent = "Submitting all 8 cases...";
+        for (const e of EXCEPTION_TYPES) {
+          await submitDemoCase(e.type);
+          await new Promise(r => setTimeout(r, 300));
+        }
+        $("demoStatus").textContent = "All 8 cases submitted — watch them resolve below.";
+        setTimeout(() => { $("runAllBtn").disabled = false; }, 3000);
+      }
+
+      async function clearCases() {
+        $("liveFeed").innerHTML = '<div class="empty-state">Cases cleared. Submit a new case above.</div>';
+        $("demoStatus").textContent = "";
+      }
+
+      // ── Live feed card ────────────────────────────────────────────
+      function addLiveFeedCard(caseId, type, sev) {
+        const feed = $("liveFeed");
+        if (feed.querySelector(".empty-state")) feed.innerHTML = "";
+        const card = document.createElement("div");
+        card.className = "case-card processing";
+        card.id = `card-${caseId}`;
+        card.innerHTML = caseCardHTML(caseId, type, sev, "processing", null, []);
+        feed.prepend(card);
+      }
+
+      function caseCardHTML(caseId, type, sev, status, resolution, auditTrail) {
+        const statusHTML = status === "processing"
+          ? `<span class="status-chip processing"><span class="pulse"></span>processing</span>`
+          : status === "resolved"
+          ? `<span class="status-chip resolved">✓ resolved</span>`
+          : status === "failed"
+          ? `<span class="status-chip failed">✗ failed</span>`
+          : `<span class="status-chip pending">pending</span>`;
+
+        const ts = auditTrail && auditTrail.length ? renderTimeline(auditTrail) : "";
+        const auditOpen = status === "resolved" && auditTrail && auditTrail.length ? "open" : "";
+
+        return `
+          <div class="case-header" onclick="toggleCard('${caseId}')">
+            <div class="case-meta">
+              <span class="case-id">${caseId}</span>
+              <span class="exc-badge">${type || ""}</span>
+              ${sev ? `<span class="sev-badge ${sev}">${sev}</span>` : ""}
+            </div>
+            ${statusHTML}
+          </div>
+          ${resolution ? `<div class="case-resolution">${resolution.slice(0, 300)}${resolution.length > 300 ? "…" : ""}</div>` : ""}
+          <div class="audit-trail ${auditOpen}" id="audit-${caseId}">
+            <div class="audit-title">Agent reasoning trail</div>
+            <div class="timeline">${ts}</div>
+          </div>
+        `;
+      }
+
+      function renderTimeline(trail) {
+        return trail.map(e => {
+          const icon = e.type === "tool_call" ? "→" : e.type === "tool_result" ? "←" : "✓";
+          const label = e.type === "tool_call" ? `Called ${e.tool}` : e.type === "tool_result" ? `${e.tool} returned` : "Final resolution";
+          const body = e.type === "tool_call" ? JSON.stringify(e.args, null, 2)
+            : e.type === "tool_result" ? JSON.stringify(e.result, null, 2)
+            : (e.text || "");
+          const time = new Date(e.timestamp).toLocaleTimeString();
+          return `<div class="t-entry">
+            <div class="t-icon ${e.type}">${icon}</div>
+            <div class="t-body">
+              <div class="t-label ${e.type}">${label}</div>
+              <div class="t-content">${body.slice(0, 500)}</div>
+              <div class="t-time">${time}</div>
+            </div>
+          </div>`;
+        }).join("");
+      }
+
+      function toggleCard(caseId) {
+        const el = $(`audit-${caseId}`);
+        if (el) el.classList.toggle("open");
+      }
+
+      // ── Poll a case until resolved ────────────────────────────────
+      function pollCase(caseId) {
+        const iv = setInterval(async () => {
+          try {
+            const state = await api(`/case/${caseId}`);
+            const card = $(`card-${caseId}`);
+            if (card) {
+              const type = state.input?.exception_type ?? "";
+              const sev = state.input?.severity ?? "";
+              card.className = `case-card ${state.status}`;
+              card.innerHTML = caseCardHTML(caseId, type, sev, state.status, state.resolution, state.auditTrail);
+            }
+            if (state.status === "resolved" || state.status === "failed") {
+              clearInterval(iv);
+            }
+          } catch { clearInterval(iv); }
+        }, 2500);
+      }
+
+      // ── All cases tab ─────────────────────────────────────────────
+      async function refreshCases() {
+        try {
+          const { cases } = await api("/cases");
+          const list = $("allCasesList");
+          $("caseCount").textContent = cases.length ? `(${cases.length})` : "";
+          if (!cases.length) { list.innerHTML = '<div class="empty-state">No cases yet.</div>'; return; }
+          list.innerHTML = '<div class="cases-list">' + cases.map(c => `
+            <div class="case-card ${c.status}" id="allcard-${c.caseId}">
+              <div class="case-header" onclick="toggleAllCard('${c.caseId}')">
+                <div class="case-meta">
+                  <span class="case-id">${c.caseId}</span>
+                  <span class="exc-badge">${c.exceptionType || ""}</span>
+                  ${c.severity ? `<span class="sev-badge ${c.severity}">${c.severity}</span>` : ""}
+                </div>
+                <span class="status-chip ${c.status}">${c.status === "processing" ? '<span class="pulse"></span>' : ""}${c.status}</span>
+              </div>
+              ${c.resolution ? `<div class="case-resolution">${c.resolution.slice(0,200)}…</div>` : ""}
+              <div class="audit-trail" id="allaudit-${c.caseId}">Loading…</div>
+            </div>
+          `).join("") + "</div>";
+        } catch(e) { console.error(e); }
+      }
+
+      async function toggleAllCard(caseId) {
+        const el = $(`allaudit-${caseId}`);
+        if (!el) return;
+        if (el.classList.contains("open")) { el.classList.remove("open"); return; }
+        el.classList.add("open");
+        try {
+          const state = await api(`/case/${caseId}`);
+          el.innerHTML = `<div class="audit-title">Agent reasoning trail</div><div class="timeline">${renderTimeline(state.auditTrail)}</div>`;
+        } catch(e) { el.innerHTML = `<p class="status-msg error">${e.message}</p>`; }
+      }
+
+      // ── Config tab ────────────────────────────────────────────────
+      let availableTools = [], currentConfig = {};
+
       async function loadConfig() {
-        const [{ tools }, config] = await Promise.all([
-          api("/api/agent/tools"),
-          api("/api/agent/config"),
-        ]);
+        const [{ tools }, config] = await Promise.all([api("/api/agent/tools"), api("/api/agent/config")]);
         availableTools = tools;
+        currentConfig = config;
         $("name").value = config.name;
         $("systemPrompt").value = config.systemPrompt;
         $("instructions").value = config.instructions;
         $("cronInstructions").value = config.cronInstructions;
         $("enableThinking").checked = config.enableThinking;
-        renderToolChips(config);
+        renderToolChips();
+      }
+
+      function renderToolChips() {
+        const c = $("toolChips");
+        c.innerHTML = availableTools.map(t => `
+          <span class="tool-chip ${currentConfig.enabledTools?.includes(t.name) ? "active" : ""}"
+            onclick="toggleTool('${t.name}')" title="${t.description || ""}">${t.name}</span>
+        `).join("");
+      }
+
+      function toggleTool(name) {
+        const s = new Set(currentConfig.enabledTools || []);
+        s.has(name) ? s.delete(name) : s.add(name);
+        currentConfig.enabledTools = [...s];
+        renderToolChips();
       }
 
       async function saveConfig() {
-        const config = JSON.parse($("tools").dataset.config || "{}");
-        const payload = {
+        await api("/api/agent/config", { method:"PUT", body: JSON.stringify({
           name: $("name").value,
           systemPrompt: $("systemPrompt").value,
           instructions: $("instructions").value,
           cronInstructions: $("cronInstructions").value,
           enableThinking: $("enableThinking").checked,
-          enabledTools: config.enabledTools || [],
-        };
-        await api("/api/agent/config", {
-          method: "PUT",
-          body: JSON.stringify(payload),
-        });
-        $("configStatus").textContent = "Config saved.";
-      }
-
-      function renderRuns(runs) {
-        const container = $("runs");
-        if (!runs.length) {
-          container.innerHTML = "<p class='status'>No runs yet.</p>";
-          return;
-        }
-
-        container.innerHTML = runs
-          .map(
-            (run) => `
-          <div class="run">
-            <div class="run-meta">
-              <span class="pill ${run.status === "failed" ? "failed" : ""}">${run.status}</span>
-              <span class="pill">${run.trigger}</span>
-              <span>${new Date(run.createdAt).toLocaleString()}</span>
-            </div>
-            <div>${run.output || run.error || "Running..."}</div>
-          </div>
-        `,
-          )
-          .join("");
-
-        const latest = runs[0];
-        $("latestOutput").textContent =
-          latest.output || latest.error || "Run in progress...";
+          enabledTools: currentConfig.enabledTools || [],
+        })});
+        $("configStatus").textContent = "Saved.";
       }
 
       async function refreshRuns() {
         const { runs } = await api("/api/runs");
-        renderRuns(runs);
+        const c = $("runs");
+        if (!runs.length) { c.innerHTML = "<p class='status-msg'>No runs yet.</p>"; return; }
+        c.innerHTML = runs.map(r => `
+          <div class="run">
+            <div class="run-meta">
+              <span class="pill ${r.status==="failed"?"failed":""}">${r.status}</span>
+              <span class="pill">${r.trigger}</span>
+              <span>${new Date(r.createdAt).toLocaleString()}</span>
+            </div>
+            <div style="font-size:0.83rem;">${r.output || r.error || "Running…"}</div>
+          </div>`).join("");
+        const latest = runs[0];
+        $("latestOutput").textContent = latest.output || latest.error || "Running…";
       }
 
-      async function runAgent() {
+      $("saveConfig").onclick = () => saveConfig().catch(e => { $("configStatus").textContent = e.message; $("configStatus").className = "status-msg error"; });
+      $("runAgent").onclick = async () => {
         $("runAgent").disabled = true;
-        $("runStatus").textContent = "Running agent...";
-        $("runStatus").className = "status";
+        $("runStatus").textContent = "Running…";
         try {
-          const instructions = $("runInstructions").value.trim();
-          const run = await api("/api/run", {
-            method: "POST",
-            body: JSON.stringify({
-              trigger: "button",
-              ...(instructions ? { instructions } : {}),
-            }),
-          });
+          const instr = $("runInstructions").value.trim();
+          const run = await api("/api/run", { method:"POST", body: JSON.stringify({ trigger:"button", ...(instr ? {instructions:instr} : {}) })});
           $("runStatus").textContent = `Run ${run.id} completed.`;
           await refreshRuns();
-        } catch (error) {
-          $("runStatus").textContent = error.message;
-          $("runStatus").className = "status error";
-        } finally {
-          $("runAgent").disabled = false;
-        }
-      }
-
-      $("saveConfig").onclick = () =>
-        saveConfig().catch((e) => {
-          $("configStatus").textContent = e.message;
-          $("configStatus").className = "status error";
-        });
-
-      $("runAgent").onclick = runAgent;
-      $("refreshRuns").onclick = () =>
-        refreshRuns().catch((e) => {
-          $("runStatus").textContent = e.message;
-          $("runStatus").className = "status error";
-        });
-
-      loadConfig()
-        .then(refreshRuns)
-        .catch((e) => {
-          $("configStatus").textContent = e.message;
-          $("configStatus").className = "status error";
-        });
-
-      // ── Exception Cases ──────────────────────────────────────────────
-
-      const SAMPLES = {
-        delayed_shipment: {
-          id: "case_" + Date.now(),
-          exception_type: "delayed_shipment",
-          order_id: "ORD-8821",
-          tracking_number: "1Z999AA10123456784",
-          carrier: "UPS",
-          origin: "Chicago, IL",
-          destination: "Boston, MA",
-          promised_delivery: "2026-05-22",
-          current_date: new Date().toISOString().split("T")[0],
-          last_scan: { location: "Cleveland, OH", status: "In Transit" },
-          customer_email: "jane.doe@example.com",
-          order_value_usd: 142.50,
-          severity: "medium",
-        },
-        address_not_found: {
-          id: "case_" + Date.now(),
-          exception_type: "address_not_found",
-          order_id: "ORD-4417",
-          tracking_number: "9400111899223397221318",
-          carrier: "USPS",
-          destination_address: "742 Evergreen Terr, Springfield, XX 00000",
-          delivery_attempts: 1,
-          customer_email: "homer.s@example.com",
-          order_value_usd: 59.99,
-          severity: "high",
-        },
-        delivery_dispute: {
-          id: "case_" + Date.now(),
-          exception_type: "delivery_dispute",
-          order_id: "ORD-3309",
-          tracking_number: "JD014600004293801520",
-          carrier: "FedEx",
-          marked_delivered_at: new Date().toISOString(),
-          delivery_location: "Front Door",
-          customer_reported_missing: true,
-          customer_email: "alice.wang@example.com",
-          order_value_usd: 389.00,
-          severity: "high",
-        },
-        customs_hold: {
-          id: "case_" + Date.now(),
-          exception_type: "customs_hold",
-          order_id: "ORD-7762",
-          tracking_number: "LY123456789CN",
-          carrier: "DHL",
-          origin_country: "CN",
-          destination_country: "US",
-          hold_reason: "missing_commercial_invoice",
-          customer_email: "bob.kim@example.com",
-          order_value_usd: 275.00,
-          severity: "high",
-        },
-        damaged_package: {
-          id: "case_" + Date.now(),
-          exception_type: "damaged_package",
-          order_id: "ORD-5540",
-          tracking_number: "1Z999AA10123456789",
-          carrier: "UPS",
-          damage_description: "Box crushed, item cracked",
-          photo_urls: ["https://storage.example.com/claims/ORD-5540/photo1.jpg"],
-          customer_email: "carlos.m@example.com",
-          order_value_usd: 199.95,
-          severity: "medium",
-        },
-        carrier_api_failure: {
-          id: "case_" + Date.now(),
-          exception_type: "carrier_api_failure",
-          carrier: "FedEx",
-          affected_order_count: 34,
-          error_code: 503,
-          error_message: "Service Unavailable",
-          consecutive_failures: 12,
-          severity: "critical",
-        },
-        return_not_received: {
-          id: "case_" + Date.now(),
-          exception_type: "return_not_received",
-          order_id: "ORD-2214",
-          return_tracking_number: "9261290100830413958486",
-          carrier: "USPS",
-          refund_status: "pending",
-          customer_email: "diana.p@example.com",
-          return_value_usd: 88.00,
-          severity: "medium",
-        },
-        duplicate_shipment: {
-          id: "case_" + Date.now(),
-          exception_type: "duplicate_shipment",
-          order_id: "ORD-9910",
-          tracking_numbers: ["1Z999AA10123000001", "1Z999AA10123000002"],
-          carrier: "UPS",
-          both_shipped: false,
-          customer_email: "ethan.r@example.com",
-          order_value_usd: 55.00,
-          severity: "low",
-        },
+        } catch(e) { $("runStatus").textContent = e.message; $("runStatus").className = "status-msg error"; }
+        finally { $("runAgent").disabled = false; }
       };
+      $("refreshRuns").onclick = () => refreshRuns().catch(() => {});
 
-      function populateSample() {
-        const type = $("exceptionType").value;
-        const sample = SAMPLES[type] ? JSON.parse(JSON.stringify(SAMPLES[type])) : {};
-        sample.id = "case_" + Date.now();
-        $("casePayload").value = JSON.stringify(sample, null, 2);
-      }
-
-      function renderAuditTrail(auditTrail) {
-        if (!auditTrail?.length) return "<p class='audit-entry'>No audit trail yet.</p>";
-        return auditTrail.map((e) => {
-          const label = e.type === "tool_call" ? `→ ${e.tool}` : e.type === "tool_result" ? `← ${e.tool}` : "✓ Resolution";
-          const body = e.type === "tool_call"
-            ? JSON.stringify(e.args, null, 2)
-            : e.type === "tool_result"
-            ? JSON.stringify(e.result, null, 2)
-            : e.text ?? "";
-          return `<div class="audit-entry ${e.type}">
-            <div class="audit-label">${label}</div>
-            <div class="audit-body">${body.slice(0, 400)}</div>
-          </div>`;
-        }).join("");
-      }
-
-      function renderCases(cases) {
-        const container = $("casesGrid");
-        if (!cases.length) {
-          container.innerHTML = "<p class='status'>No exception cases yet. Submit one above.</p>";
-          return;
-        }
-        container.innerHTML = cases.map((c) => `
-          <div class="case-card" id="card-${c.caseId}" onclick="toggleAudit('${c.caseId}')">
-            <div class="case-card-header">
-              <div>
-                <div class="case-id">${c.caseId}</div>
-                <div class="case-type">${c.exceptionType ?? ""}</div>
-              </div>
-              <span class="status-pill ${c.status}">${c.status}</span>
-            </div>
-            ${c.resolution ? `<div class="case-resolution">${c.resolution.slice(0, 200)}</div>` : ""}
-            <div class="audit-trail" id="audit-${c.caseId}">Loading audit trail...</div>
-          </div>
-        `).join("");
-      }
-
-      const openAudits = new Set();
-
-      async function toggleAudit(caseId) {
-        const el = document.getElementById(`audit-${caseId}`);
-        if (!el) return;
-        if (el.classList.contains("open")) {
-          el.classList.remove("open");
-          openAudits.delete(caseId);
-          return;
-        }
-        el.classList.add("open");
-        openAudits.add(caseId);
-        try {
-          const data = await api(`/case/${caseId}`);
-          el.innerHTML = renderAuditTrail(data.auditTrail);
-        } catch (e) {
-          el.innerHTML = `<p class='status error'>${e.message}</p>`;
-        }
-      }
-
-      async function refreshCases() {
-        try {
-          const { cases } = await api("/cases");
-          renderCases(cases);
-          // Refresh any open audit trails
-          for (const caseId of openAudits) {
-            const el = document.getElementById(`audit-${caseId}`);
-            if (el?.classList.contains("open")) {
-              const data = await api(`/case/${caseId}`).catch(() => null);
-              if (data) el.innerHTML = renderAuditTrail(data.auditTrail);
-            }
-          }
-        } catch (e) {
-          $("caseStatus").textContent = e.message;
-          $("caseStatus").className = "status error";
-        }
-      }
-
-      async function submitCase() {
-        $("submitCase").disabled = true;
-        $("caseStatus").textContent = "Submitting...";
-        $("caseStatus").className = "status";
-        try {
-          let payload;
-          try {
-            payload = JSON.parse($("casePayload").value);
-          } catch {
-            throw new Error("Invalid JSON in case payload");
-          }
-          const res = await fetch("/case", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          const data = await res.json().catch(() => ({}));
-          $("caseStatus").textContent = `Case ${data.caseId} submitted — processing...`;
-          await refreshCases();
-          // Poll until resolved/failed
-          const caseId = data.caseId;
-          const poll = setInterval(async () => {
-            try {
-              const state = await api(`/case/${caseId}`);
-              if (state.status === "resolved" || state.status === "failed") {
-                clearInterval(poll);
-                $("caseStatus").textContent = `Case ${caseId}: ${state.status}.`;
-                await refreshCases();
-              }
-            } catch { clearInterval(poll); }
-          }, 2500);
-        } catch (e) {
-          $("caseStatus").textContent = e.message;
-          $("caseStatus").className = "status error";
-        } finally {
-          $("submitCase").disabled = false;
-        }
-      }
-
-      $("populateSample").onclick = populateSample;
-      $("submitCase").onclick = submitCase;
-      $("refreshCases").onclick = () => refreshCases().catch(() => {});
-      $("exceptionType").onchange = populateSample;
-
-      populateSample();
-      refreshCases();
+      // ── Init ──────────────────────────────────────────────────────
+      buildDemoGrid();
+      loadConfig().then(refreshRuns).catch(console.error);
     </script>
   </body>
 </html>
