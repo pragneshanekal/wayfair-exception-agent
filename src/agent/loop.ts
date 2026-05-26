@@ -1,8 +1,9 @@
 import { SUBCONSCIOUS_BASE_URL, SUBCONSCIOUS_MODEL } from "../subconscious/client";
 import { getToolsForCaseType } from "./tools";
 import { executeTool, type ToolEnv } from "../tools/index";
-import type { AuditEntry } from "../types";
+import type { AuditEntry, TokenUsage } from "../types";
 
+// Static prompt — never interpolated, maximises prefix cache hits across cases of the same type.
 const SYSTEM_PROMPT = `You are a Wayfair logistics exception-resolution agent. Given a shipment exception case, analyze it and call the appropriate tools to resolve it. Call multiple tools if needed. After all tool calls complete, provide a concise summary of what was done and the resolution status.
 
 Exception type guidance:
@@ -17,21 +18,43 @@ Exception type guidance:
 
 Always use the exact IDs, emails, and tracking numbers from the case input.`;
 
+// Complex cases benefit from deeper reasoning; simple ones are faster without it.
+const THINKING_CASE_TYPES = new Set(["delivery_dispute", "customs_hold", "damaged_package"]);
+
+// Cap tokens per case type — simple cases need far fewer output tokens.
+const MAX_TOKENS_BY_TYPE: Record<string, number> = {
+  delayed_shipment:    600,
+  address_not_found:   500,
+  delivery_dispute:    900,
+  customs_hold:        800,
+  damaged_package:     900,
+  carrier_api_failure: 500,
+  return_not_received: 700,
+  duplicate_shipment:  400,
+};
+
+export type { TokenUsage };
+
 export interface RunLoopResult {
   resolution: string;
   auditTrail: AuditEntry[];
+  usage: TokenUsage;
 }
 
 export async function runAgentLoop(
   caseInput: Record<string, unknown>,
   apiKey: string,
   toolEnv: ToolEnv,
-  maxTokens = 1024,
+  _maxTokensOverride?: number,
   maxIter = 8,
 ): Promise<RunLoopResult> {
   const auditTrail: AuditEntry[] = [];
   const caseType = String(caseInput.exception_type ?? "");
   const tools = getToolsForCaseType(caseType);
+  const enableThinking = THINKING_CASE_TYPES.has(caseType);
+  const maxTokens = _maxTokensOverride ?? MAX_TOKENS_BY_TYPE[caseType] ?? 800;
+
+  const usage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, iterations: 0 };
 
   const messages: Record<string, unknown>[] = [
     { role: "system", content: SYSTEM_PROMPT },
@@ -41,6 +64,8 @@ export async function runAgentLoop(
   let resolution = "Unable to resolve within iteration limit.";
 
   for (let i = 0; i < maxIter; i++) {
+    usage.iterations++;
+
     const res = await fetch(`${SUBCONSCIOUS_BASE_URL}/chat/completions`, {
       method: "POST",
       headers: {
@@ -53,7 +78,7 @@ export async function runAgentLoop(
         messages,
         tools,
         tool_choice: "auto",
-        chat_template_kwargs: { enable_thinking: false, enable_auto_compaction: false },
+        chat_template_kwargs: { enable_thinking: enableThinking, enable_auto_compaction: false },
       }),
     });
 
@@ -63,6 +88,7 @@ export async function runAgentLoop(
     }
 
     const data = await res.json() as {
+      usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
       choices: Array<{
         finish_reason: string;
         message: {
@@ -76,6 +102,13 @@ export async function runAgentLoop(
         };
       }>;
     };
+
+    // Accumulate token usage across all iterations
+    if (data.usage) {
+      usage.promptTokens     += data.usage.prompt_tokens;
+      usage.completionTokens += data.usage.completion_tokens;
+      usage.totalTokens      += data.usage.total_tokens;
+    }
 
     const choice = data.choices[0];
     const msg = choice.message;
@@ -131,5 +164,5 @@ export async function runAgentLoop(
     break;
   }
 
-  return { resolution, auditTrail };
+  return { resolution, auditTrail, usage };
 }

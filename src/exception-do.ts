@@ -78,7 +78,7 @@ export class ExceptionDO implements DurableObject {
     await this.storage.put("state", state);
 
     try {
-      const { resolution, auditTrail } = await runAgentLoop(
+      const { resolution, auditTrail, usage } = await runAgentLoop(
         state.input,
         this.env.SUBCONSCIOUS_API_KEY,
         {
@@ -90,6 +90,7 @@ export class ExceptionDO implements DurableObject {
       state.status = "resolved";
       state.resolution = resolution;
       state.auditTrail = auditTrail;
+      state.usage = usage;
       state.retries += 1;
       state.updatedAt = new Date().toISOString();
 
@@ -111,6 +112,7 @@ export class ExceptionDO implements DurableObject {
           exceptionType: (state.input as { exception_type?: string }).exception_type ?? "unknown",
           resolution: resolution.slice(0, 300),
           severity: (state.input as { severity?: string }).severity ?? "unknown",
+          usage,
           updatedAt: state.updatedAt,
           createdAt: state.createdAt,
         }),

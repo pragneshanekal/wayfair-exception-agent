@@ -45,12 +45,20 @@ export interface AuditEntry {
   text?: string;
 }
 
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  iterations: number;
+}
+
 export interface CaseState {
   caseId: string;
   status: "pending" | "processing" | "resolved" | "failed";
   retries: number;
   resolution: string | null;
   auditTrail: AuditEntry[];
+  usage?: TokenUsage;
   input: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
