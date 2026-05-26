@@ -86,6 +86,39 @@
       .pitch-demo-btn:hover { border-color: var(--accent); }
       .pitch-status { font-size: 0.82rem; color: var(--muted); margin-top: 0.5rem; min-height: 1.2em; }
 
+      /* ── Before/After ── */
+      .before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+      @media (max-width: 640px) { .before-after { grid-template-columns: 1fr; } }
+      .before-col { background: var(--danger-dim); border: 1px solid #5a2020; border-radius: 14px; padding: 1.25rem 1.5rem; }
+      .after-col  { background: var(--accent-dim); border: 1px solid #1f5a3a; border-radius: 14px; padding: 1.25rem 1.5rem; }
+      .before-col h3 { color: var(--danger); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem; }
+      .after-col  h3 { color: var(--accent); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem; }
+      .process-step { display: flex; gap: 0.6rem; align-items: flex-start; margin-bottom: 0.5rem; font-size: 0.83rem; line-height: 1.5; }
+      .step-num { min-width: 20px; font-weight: 700; color: var(--danger); }
+      .after-col .step-num { color: var(--accent); }
+      .process-step .step-body { color: var(--muted); }
+      .process-step strong { color: var(--text); }
+
+      /* ── Reasoning walkthrough ── */
+      .reasoning-box { background: #0b0d12; border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; margin-bottom: 1rem; }
+      .reasoning-box h2 { margin-bottom: 1rem; }
+      .reasoning-step { display: flex; gap: 1rem; margin-bottom: 1rem; align-items: flex-start; }
+      .rs-num { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; flex-shrink: 0; }
+      .rs-num.blue   { background: var(--blue-dim);   color: var(--blue);   }
+      .rs-num.purple { background: #2a1f3d;            color: var(--purple); }
+      .rs-num.green  { background: var(--accent-dim);  color: var(--accent); }
+      .rs-num.yellow { background: #3d2a10;            color: var(--yellow); }
+      .rs-body { flex: 1; }
+      .rs-title { font-size: 0.88rem; font-weight: 700; margin-bottom: 0.25rem; color: var(--text); }
+      .rs-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.55; }
+      .rs-code { font-size: 0.75rem; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.75rem; margin-top: 0.5rem; color: var(--accent); font-family: monospace; white-space: pre-wrap; }
+
+      /* ── Design decisions ── */
+      .decisions-grid { display: grid; gap: 0.6rem; margin-bottom: 1rem; }
+      .decision { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 0.85rem 1rem; display: flex; gap: 0.75rem; align-items: flex-start; }
+      .decision .d-label { font-size: 0.78rem; font-weight: 700; color: var(--purple); white-space: nowrap; min-width: 180px; }
+      .decision .d-why { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+
       /* ── Panels ── */
       .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; }
       .panel + .panel { margin-top: 1rem; }
@@ -262,6 +295,31 @@
           </div>
         </div>
 
+        <!-- Before / After -->
+        <div class="before-after">
+          <div class="before-col">
+            <h3>Without the agent — today</h3>
+            <div class="process-step"><span class="step-num">1</span><span class="step-body"><strong>Exception fires</strong> — lands in the logistics specialist's queue</span></div>
+            <div class="process-step"><span class="step-num">2</span><span class="step-body"><strong>Specialist reads the case</strong> — opens the ticket, finds the tracking number, looks up the carrier portal</span></div>
+            <div class="process-step"><span class="step-num">3</span><span class="step-body"><strong>Contacts the carrier</strong> — calls or emails, waits for a status update (minutes to hours)</span></div>
+            <div class="process-step"><span class="step-num">4</span><span class="step-body"><strong>Drafts a customer message</strong> — manually writes a delay or correction notice</span></div>
+            <div class="process-step"><span class="step-num">5</span><span class="step-body"><strong>Fills a claim form</strong> — if package is damaged or lost, fills out a separate damage claim portal</span></div>
+            <div class="process-step"><span class="step-num">6</span><span class="step-body"><strong>Creates an escalation ticket</strong> — manually assigns severity and routes to customs, ops, or investigation team</span></div>
+            <div class="process-step"><span class="step-num">7</span><span class="step-body"><strong>Tracks follow-up</strong> — monitors for closure, updates the record</span></div>
+            <p style="font-size:0.8rem; color:var(--danger); margin-top:0.75rem;">15–40 min per case · inconsistent across specialists · doesn't scale</p>
+          </div>
+          <div class="after-col">
+            <h3>With the agent — now</h3>
+            <div class="process-step"><span class="step-num">1</span><span class="step-body"><strong>Webhook fires</strong> — <code style="font-size:0.75rem;">POST /case</code> with the full exception JSON. Worker returns 202 immediately.</span></div>
+            <div class="process-step"><span class="step-num">2</span><span class="step-body"><strong>ExceptionDO initializes</strong> — Durable Object creates an isolated state machine for this case. Status: <code style="font-size:0.75rem;">pending → processing</code>.</span></div>
+            <div class="process-step"><span class="step-num">3</span><span class="step-body"><strong>LLM reads the case</strong> — static system prompt + filtered tool schemas + case JSON sent to Subconscious. Model reasons through exception type and selects tools.</span></div>
+            <div class="process-step"><span class="step-num">4</span><span class="step-body"><strong>Tools execute in the Worker</strong> — <code style="font-size:0.75rem;">contact_carrier</code>, <code style="font-size:0.75rem;">notify_customer</code>, <code style="font-size:0.75rem;">file_claim</code>, <code style="font-size:0.75rem;">escalate</code> — real HTTP calls, real ntfy.sh push notifications.</span></div>
+            <div class="process-step"><span class="step-num">5</span><span class="step-body"><strong>LLM sees results, resolves</strong> — tool outputs fed back; model writes a plain-language resolution summary. Status: <code style="font-size:0.75rem;">resolved</code>.</span></div>
+            <div class="process-step"><span class="step-num">6</span><span class="step-body"><strong>Audit trail written to R2</strong> — every tool call, argument, result, and LLM response stored as structured JSON for compliance review.</span></div>
+            <p style="font-size:0.8rem; color:var(--accent); margin-top:0.75rem;">~2–3s end-to-end · same resolution path every time · scales to any volume</p>
+          </div>
+        </div>
+
         <!-- Architecture diagram -->
         <div class="pitch-arch">
           <h2 style="margin-bottom:1rem;">System architecture</h2>
@@ -273,7 +331,12 @@
             <div class="arch-arrow">→</div>
             <div class="arch-node worker">
               <div class="node-title">Cloudflare Worker</div>
-              <div class="node-sub">Hono router · ExceptionDO</div>
+              <div class="node-sub">Hono router · ctx.waitUntil()</div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-node worker">
+              <div class="node-title">ExceptionDO</div>
+              <div class="node-sub">Durable Object · SQLite state</div>
             </div>
             <div class="arch-arrow">→</div>
             <div class="arch-node llm">
@@ -283,76 +346,154 @@
             <div class="arch-arrow">↔</div>
             <div class="arch-node worker">
               <div class="node-title">Tools (7)</div>
-              <div class="node-sub">contact_carrier · file_claim · escalate…</div>
+              <div class="node-sub">run in Worker, not LLM</div>
             </div>
             <div class="arch-arrow">→</div>
             <div class="arch-node output">
               <div class="node-title">Outputs</div>
-              <div class="node-sub">ntfy.sh · R2 · KV index</div>
+              <div class="node-sub">ntfy.sh · R2 · KV</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- How the LLM reasons -->
+        <div class="reasoning-box">
+          <h2>How the LLM reasons through a case</h2>
+
+          <div class="reasoning-step">
+            <div class="rs-num blue">1</div>
+            <div class="rs-body">
+              <div class="rs-title">Static system prompt → prefix cache hit</div>
+              <div class="rs-desc">The system prompt is never interpolated — it's the same string every call for the same exception type. Subconscious server-side prefix caching kicks in: the prompt + tool schemas are already tokenized and cached, so only the new case JSON is billed as input tokens on subsequent calls.</div>
+              <div class="rs-code">// loop.ts — never interpolated
+const SYSTEM_PROMPT = `You are a Wayfair logistics exception-resolution agent...`;</div>
+            </div>
+          </div>
+
+          <div class="reasoning-step">
+            <div class="rs-num purple">2</div>
+            <div class="rs-body">
+              <div class="rs-title">Tool filtering — LLM only sees what's relevant</div>
+              <div class="rs-desc">Before each call, the tool schema list is filtered to only the 2–4 tools that apply to this exception type. A <code>delayed_shipment</code> case never sees <code>void_label</code> or <code>file_claim</code>. This keeps the context window well under the 8192-token limit and prevents the model from hallucinating irrelevant tool calls.</div>
+              <div class="rs-code">CASE_TYPE_TOOLS = {
+  delayed_shipment:    ["contact_carrier", "notify_customer", "escalate"],
+  delivery_dispute:    ["file_claim", "escalate", "notify_customer"],
+  duplicate_shipment:  ["void_label", "notify_customer"],
+  ...
+}</div>
+            </div>
+          </div>
+
+          <div class="reasoning-step">
+            <div class="rs-num purple">3</div>
+            <div class="rs-body">
+              <div class="rs-title">Selective thinking — deep reasoning only when it matters</div>
+              <div class="rs-desc">Simple cases (delayed shipment, address not found) run with <code>enable_thinking: false</code> — fast and cheap. Complex cases that require multi-factor judgment — <strong>delivery_dispute</strong>, <strong>customs_hold</strong>, <strong>damaged_package</strong> — get <code>enable_thinking: true</code>. The model internally reasons through claim type, order value thresholds, and escalation severity before emitting its first tool call.</div>
+              <div class="rs-code">THINKING_CASE_TYPES = new Set([
+  "delivery_dispute",   // → should we file dispute or loss claim?
+  "customs_hold",       // → which broker team? what delay notice?
+  "damaged_package",    // → refund vs reschedule depends on order_value_usd
+]);</div>
+            </div>
+          </div>
+
+          <div class="reasoning-step">
+            <div class="rs-num green">4</div>
+            <div class="rs-body">
+              <div class="rs-title">Native tool_calls — not ReAct JSON parsing</div>
+              <div class="rs-desc">The agent uses OpenAI-compatible <code>tool_calls</code> (not a custom ReAct JSON format). The LLM returns <code>finish_reason: "tool_calls"</code> with a structured function call array. The Worker executes each tool, appends results as <code>role: "tool"</code> messages, and loops. No regex, no JSON parsing errors, no prompt engineering to force JSON shape.</div>
+              <div class="rs-code">// LLM returns:
+{ finish_reason: "tool_calls",
+  message: { tool_calls: [
+    { function: { name: "contact_carrier", arguments: '{"tracking_number":"1Z999..."}' } },
+    { function: { name: "notify_customer", arguments: '{"type":"delay_notice",...}' } }
+  ]}}
+// Worker executes both, appends tool results, calls LLM again</div>
+            </div>
+          </div>
+
+          <div class="reasoning-step">
+            <div class="rs-num green">5</div>
+            <div class="rs-body">
+              <div class="rs-title">Loop until stop — up to 8 iterations with token accounting</div>
+              <div class="rs-desc">The loop continues until the LLM returns <code>finish_reason: "stop"</code> or hits the 8-iteration cap. Prompt + completion tokens are accumulated across all iterations and stored on the case state. Token budgets are per-case-type (400–900) to avoid over-generating on simple cases.</div>
+              <div class="rs-code">MAX_TOKENS_BY_TYPE = {
+  duplicate_shipment:  400,   // void one label, done
+  delayed_shipment:    600,   // contact + notify
+  damaged_package:     900,   // claim + decision + reschedule/refund
+}</div>
+            </div>
+          </div>
+
+          <div class="reasoning-step">
+            <div class="rs-num yellow">6</div>
+            <div class="rs-body">
+              <div class="rs-title">Durable Object — idempotent state machine per case</div>
+              <div class="rs-desc">Each exception gets its own Durable Object with SQLite-backed state. The DO enforces the <code>pending → processing → resolved/failed</code> state machine — a second webhook for the same case ID hits the existing DO and returns the current state immediately (no double-processing). The full audit trail is stored in DO state and flushed to R2 on resolution.</div>
             </div>
           </div>
         </div>
 
         <!-- Live demo box (for judges) -->
         <div class="demo-live-box">
-          <h3>Fire a live example right now</h3>
+          <h3>Fire a live example — see it resolve in real time</h3>
           <div class="pitch-demo-grid" id="pitchDemoGrid"></div>
           <p id="pitchStatus" class="pitch-status"></p>
           <p style="font-size:0.78rem; color:var(--muted); margin-top:0.5rem;">
-            Push notifications go live to <strong>ntfy.sh/wayfair-logistics-ops</strong> and <strong>ntfy.sh/wayfair-logistics-customer</strong> — subscribe on your phone to see them fire in real time.
+            After clicking, switch to the <strong>Demo</strong> tab to watch the audit trail build step by step.
+            Push notifications fire live to <strong>ntfy.sh/wayfair-logistics-ops</strong> and <strong>ntfy.sh/wayfair-logistics-customer</strong>.
           </p>
         </div>
 
-        <!-- Business narrative cards -->
-        <div class="pitch-grid">
-          <div class="pitch-card">
-            <h3>The problem</h3>
-            <p>Wayfair ships millions of packages a month. When exceptions occur — missed deliveries, damaged goods, customs holds, address errors — each one lands in a human queue. A specialist reads the case, contacts the carrier, files claims, updates the customer, and escalates internally.</p>
-            <ul>
-              <li>15–40 minutes of agent time per exception</li>
-              <li>Inconsistent resolution paths across teams</li>
-              <li>Customer satisfaction drops with every hour of silence</li>
-              <li>Ops teams can't scale linearly with volume spikes</li>
-            </ul>
-          </div>
-
-          <div class="pitch-card">
-            <h3>The solution</h3>
-            <p>An always-on AI agent running at the edge that autonomously resolves shipment exceptions the moment they occur.</p>
-            <ul>
-              <li><strong style="color:var(--accent)">Contacts the carrier</strong> — gets the latest status update instantly</li>
-              <li><strong style="color:var(--accent)">Notifies the customer</strong> — sends the right message for the right situation</li>
-              <li><strong style="color:var(--accent)">Files damage claims</strong> — attaches evidence, sets claim type</li>
-              <li><strong style="color:var(--accent)">Escalates intelligently</strong> — assigns to the right team with the right severity</li>
-              <li><strong style="color:var(--accent)">Voids duplicate labels</strong> — prevents double-shipment and billing errors</li>
-              <li><strong style="color:var(--accent)">Logs everything</strong> — full audit trail in R2 for compliance and review</li>
-            </ul>
-          </div>
-
-          <div class="pitch-card">
-            <h3>Why Cloudflare + Subconscious</h3>
-            <ul>
-              <li><strong style="color:var(--blue)">Durable Objects</strong> give each exception its own isolated state machine — idempotent, resumable, zero cold-start for the logic</li>
-              <li><strong style="color:var(--blue)">Edge deployment</strong> means the agent runs globally with sub-100ms routing latency</li>
-              <li><strong style="color:var(--purple)">Subconscious prefix caching</strong> — static system prompt + tool schemas are cached server-side, cutting repeat call costs by ~60%</li>
-              <li><strong style="color:var(--purple)">Per-case-type thinking</strong> — complex cases (disputes, customs, damage) get deeper reasoning; simple cases stay fast</li>
-              <li><strong style="color:var(--purple)">Per-case-type tool filtering</strong> — the LLM only sees the 2–4 tools relevant to the case, keeping context lean under the 8192-token limit</li>
-            </ul>
-          </div>
-
-          <div class="pitch-card">
-            <h3>What the agent does for each exception</h3>
-            <ul>
-              <li><strong>Delayed shipment</strong> → contact carrier, notify customer</li>
-              <li><strong>Address not found</strong> → request correction, escalate after 2nd attempt</li>
-              <li><strong>Delivery dispute</strong> → file claim, escalate to investigation team</li>
-              <li><strong>Customs hold</strong> → escalate to customs broker, notify customer</li>
-              <li><strong>Damaged package</strong> → file damage claim, reschedule or refund by order value</li>
-              <li><strong>Carrier API failure</strong> → escalate critical to ops; no customer noise during outage</li>
-              <li><strong>Return not received</strong> → contact carrier, escalate; hold refund until confirmed</li>
-              <li><strong>Duplicate shipment</strong> → void the extra label; confirm primary shipment active</li>
-            </ul>
-          </div>
+        <!-- Tool table -->
+        <div class="panel" style="margin-bottom:1rem;">
+          <h2>What each tool does</h2>
+          <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+            <thead>
+              <tr style="color:var(--muted); text-align:left; border-bottom:1px solid var(--border);">
+                <th style="padding:0.5rem 0.75rem;">Tool</th>
+                <th style="padding:0.5rem 0.75rem;">What it does</th>
+                <th style="padding:0.5rem 0.75rem;">Used for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #1a1f2e;">
+                <td style="padding:0.5rem 0.75rem; font-family:monospace; color:var(--blue);">contact_carrier</td>
+                <td style="padding:0.5rem 0.75rem; color:var(--muted);">Gets current shipment status from the carrier API</td>
+                <td style="padding:0.5rem 0.75rem; color:var(--muted);">delayed_shipment, return_not_received</td>
+              </tr>
+              <tr style="border-bottom:1px solid #1a1f2e;">
+                <td style="padding:0.5rem 0.75rem; font-family:monospace; color:var(--blue);">notify_customer</td>
+                <td style="padding:0.5rem 0.75rem; color:var(--muted);">Sends push notification to customer channel (ntfy.sh)</td>
+                <td style="padding:0.5rem 0.75rem; color:var(--muted);">delay_notice, address_correction, refund_issued</td>
+              </tr>
+              <tr style="border-bottom:1px solid #1a1f2e;">
+                <td style="padding:0.5rem 0.75rem; font-family:monospace; color:var(--blue);">escalate</td>
+                <td style="padding:0.5rem 0.75rem; color:var(--muted);">Creates ops ticket + fires priority push to ops channel</td>
+                <td style="padding:0.5rem 0.75rem; color:var(--muted);">customs_hold, carrier_api_failure, disputes</td>
+              </tr>
+              <tr style="border-bottom:1px solid #1a1f2e;">
+                <td style="padding:0.5rem 0.75rem; font-family:monospace; color:var(--blue);">file_claim</td>
+                <td style="padding:0.5rem 0.75rem; color:var(--muted);">Submits damage or dispute claim with evidence URLs</td>
+                <td style="padding:0.5rem 0.75rem; color:var(--muted);">damaged_package, delivery_dispute</td>
+              </tr>
+              <tr style="border-bottom:1px solid #1a1f2e;">
+                <td style="padding:0.5rem 0.75rem; font-family:monospace; color:var(--blue);">void_label</td>
+                <td style="padding:0.5rem 0.75rem; color:var(--muted);">Cancels a duplicate shipping label</td>
+                <td style="padding:0.5rem 0.75rem; color:var(--muted);">duplicate_shipment</td>
+              </tr>
+              <tr style="border-bottom:1px solid #1a1f2e;">
+                <td style="padding:0.5rem 0.75rem; font-family:monospace; color:var(--blue);">refund</td>
+                <td style="padding:0.5rem 0.75rem; color:var(--muted);">Issues full or partial refund to the customer</td>
+                <td style="padding:0.5rem 0.75rem; color:var(--muted);">damaged_package (when reschedule not viable)</td>
+              </tr>
+              <tr>
+                <td style="padding:0.5rem 0.75rem; font-family:monospace; color:var(--blue);">reschedule</td>
+                <td style="padding:0.5rem 0.75rem; color:var(--muted);">Books a new delivery window</td>
+                <td style="padding:0.5rem 0.75rem; color:var(--muted);">damaged_package (when replacement is preferred)</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
       </div>
