@@ -39,6 +39,7 @@ function injectSubconsciousDefaults(
     body.chat_template_kwargs = {
       ...existingKwargs,
       enable_thinking: existingKwargs.enable_thinking ?? options.enableThinking,
+      enable_auto_compaction: existingKwargs.enable_auto_compaction ?? false,
     };
 
     if (body.stream === true && options.includeUsageOnStream) {

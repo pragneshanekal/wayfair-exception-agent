@@ -9,8 +9,26 @@ crons = ["0 * * * *"]
 
 [[kv_namespaces]]
 binding = "AGENT_KV"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
-preview_id = "REPLACE_WITH_YOUR_PREVIEW_KV_NAMESPACE_ID"
+id = "7bf3eab86c95493eb624cf6470f98a8a"
+preview_id = "53984a18cf09479ea82db04481f898d5"
+
+[[kv_namespaces]]
+binding = "CASE_INDEX"
+id = "4229e4ce5b8249508ad5a3d7b3d33431"
+preview_id = "d3f0c0c9d33a47f58272f5e394a71284"
+
+[[durable_objects.bindings]]
+name = "EXCEPTION_DO"
+class_name = "ExceptionDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ExceptionDO"]
+
+[[r2_buckets]]
+binding = "AUDIT_LOG"
+bucket_name = "wayfair-audit-log"
+preview_bucket_name = "wayfair-audit-log-preview"
 
 [assets]
 directory = "./public"
@@ -19,3 +37,5 @@ binding = "ASSETS"
 [vars]
 # Optional: set a shared secret for webhook triggers (override in .dev.vars locally)
 # WEBHOOK_SECRET = "change-me"
+NTFY_OPS_CHANNEL = "wayfair-logistics-ops"
+NTFY_CUSTOMER_CHANNEL = "wayfair-logistics-customer"

@@ -1,0 +1,200 @@
+[
+  {
+    "id": "case_001",
+    "description": "Shipment stuck in transit beyond SLA window",
+    "input": {
+      "exception_type": "delayed_shipment",
+      "order_id": "ORD-8821",
+      "tracking_number": "1Z999AA10123456784",
+      "carrier": "UPS",
+      "origin": "Chicago, IL",
+      "destination": "Boston, MA",
+      "promised_delivery": "2026-05-22",
+      "current_date": "2026-05-25",
+      "last_scan": {
+        "location": "Cleveland, OH",
+        "timestamp": "2026-05-22T14:30:00Z",
+        "status": "In Transit"
+      },
+      "customer_email": "jane.doe@example.com",
+      "order_value_usd": 142.50
+    },
+    "expected_actions": [
+      "investigate_carrier_delay",
+      "notify_customer",
+      "escalate_if_no_update_in_24h"
+    ],
+    "expected_resolution": "Contact carrier for status update, send proactive delay notification to customer, offer compensation per SLA policy if delay exceeds 3 days.",
+    "severity": "medium"
+  },
+  {
+    "id": "case_002",
+    "description": "Delivery attempted but address not found",
+    "input": {
+      "exception_type": "address_not_found",
+      "order_id": "ORD-4417",
+      "tracking_number": "9400111899223397221318",
+      "carrier": "USPS",
+      "destination_address": "742 Evergreen Terr, Springfield, XX 00000",
+      "delivery_attempts": 1,
+      "last_attempt": "2026-05-24T11:15:00Z",
+      "customer_email": "homer.s@example.com",
+      "order_value_usd": 59.99
+    },
+    "expected_actions": [
+      "flag_invalid_address",
+      "contact_customer_for_correction",
+      "hold_package_at_facility"
+    ],
+    "expected_resolution": "Reach out to customer to confirm or correct address. If corrected within 48 hours, reroute; otherwise initiate return to sender.",
+    "severity": "high"
+  },
+  {
+    "id": "case_003",
+    "description": "Package marked delivered but customer reports non-receipt",
+    "input": {
+      "exception_type": "delivery_dispute",
+      "order_id": "ORD-3309",
+      "tracking_number": "JD014600004293801520",
+      "carrier": "FedEx",
+      "marked_delivered_at": "2026-05-23T16:42:00Z",
+      "delivery_location": "Front Door",
+      "gps_coordinates": { "lat": 42.3601, "lng": -71.0589 },
+      "customer_reported_missing": true,
+      "customer_email": "alice.wang@example.com",
+      "order_value_usd": 389.00
+    },
+    "expected_actions": [
+      "open_carrier_investigation",
+      "request_proof_of_delivery_photo",
+      "pause_refund_pending_investigation"
+    ],
+    "expected_resolution": "File carrier claim, request POD photo from FedEx. If GPS mismatch or no photo, process replacement or refund per policy within 5 business days.",
+    "severity": "high"
+  },
+  {
+    "id": "case_004",
+    "description": "Shipment held at customs with missing documentation",
+    "input": {
+      "exception_type": "customs_hold",
+      "order_id": "ORD-7762",
+      "tracking_number": "LY123456789CN",
+      "carrier": "DHL",
+      "origin_country": "CN",
+      "destination_country": "US",
+      "hold_reason": "missing_commercial_invoice",
+      "held_since": "2026-05-20T08:00:00Z",
+      "customs_office": "Los Angeles, CA",
+      "customer_email": "bob.kim@example.com",
+      "order_value_usd": 275.00,
+      "hs_code": "8471.30"
+    },
+    "expected_actions": [
+      "retrieve_commercial_invoice",
+      "submit_documentation_to_customs_broker",
+      "notify_customer_of_delay"
+    ],
+    "expected_resolution": "Generate and submit commercial invoice via customs broker. Notify customer of expected 3–7 day clearance delay. Escalate if held beyond 10 days.",
+    "severity": "high"
+  },
+  {
+    "id": "case_005",
+    "description": "Damaged package reported upon delivery",
+    "input": {
+      "exception_type": "damaged_package",
+      "order_id": "ORD-5540",
+      "tracking_number": "1Z999AA10123456789",
+      "carrier": "UPS",
+      "damage_reported_at": "2026-05-25T09:10:00Z",
+      "damage_description": "Box crushed, item cracked",
+      "photo_urls": [
+        "https://storage.example.com/claims/ORD-5540/photo1.jpg",
+        "https://storage.example.com/claims/ORD-5540/photo2.jpg"
+      ],
+      "customer_email": "carlos.m@example.com",
+      "order_value_usd": 199.95,
+      "item_sku": "ELEC-TABLET-PRO"
+    },
+    "expected_actions": [
+      "file_carrier_damage_claim",
+      "initiate_replacement_shipment",
+      "notify_customer_with_resolution_eta"
+    ],
+    "expected_resolution": "File UPS damage claim with photo evidence. Ship replacement within 1 business day. Reimburse shipping cost if applicable.",
+    "severity": "medium"
+  },
+  {
+    "id": "case_006",
+    "description": "Carrier API returning 503 — tracking data unavailable for batch of orders",
+    "input": {
+      "exception_type": "carrier_api_failure",
+      "carrier": "FedEx",
+      "affected_order_count": 34,
+      "affected_order_ids": ["ORD-6001", "ORD-6002", "ORD-6003"],
+      "error_code": 503,
+      "error_message": "Service Unavailable",
+      "first_failure_at": "2026-05-25T06:00:00Z",
+      "consecutive_failures": 12,
+      "retry_interval_seconds": 300
+    },
+    "expected_actions": [
+      "pause_tracking_sync_for_carrier",
+      "alert_ops_team",
+      "queue_retry_with_backoff",
+      "suppress_customer_delay_alerts_during_outage"
+    ],
+    "expected_resolution": "Switch to exponential backoff retry queue. Suppress false delay alerts to customers. Alert ops team; resume sync automatically when API recovers.",
+    "severity": "critical"
+  },
+  {
+    "id": "case_007",
+    "description": "Return label scanned but item not received at warehouse after 7 days",
+    "input": {
+      "exception_type": "return_not_received",
+      "order_id": "ORD-2214",
+      "return_tracking_number": "9261290100830413958486",
+      "carrier": "USPS",
+      "return_label_created": "2026-05-15T00:00:00Z",
+      "label_first_scan": "2026-05-16T13:22:00Z",
+      "expected_warehouse_arrival": "2026-05-19",
+      "current_date": "2026-05-25",
+      "last_known_location": "USPS Distribution Center, Hartford, CT",
+      "refund_status": "pending",
+      "customer_email": "diana.p@example.com",
+      "return_value_usd": 88.00
+    },
+    "expected_actions": [
+      "investigate_return_with_carrier",
+      "extend_refund_hold_deadline",
+      "notify_customer_of_investigation"
+    ],
+    "expected_resolution": "Open USPS missing mail case. Extend refund hold by 7 days. If unresolved after 14 days, issue refund and close return.",
+    "severity": "medium"
+  },
+  {
+    "id": "case_008",
+    "description": "Duplicate shipment created for same order",
+    "input": {
+      "exception_type": "duplicate_shipment",
+      "order_id": "ORD-9910",
+      "tracking_numbers": [
+        "1Z999AA10123000001",
+        "1Z999AA10123000002"
+      ],
+      "carrier": "UPS",
+      "both_shipped": false,
+      "first_label_created": "2026-05-24T10:00:00Z",
+      "second_label_created": "2026-05-24T10:03:00Z",
+      "root_cause_hint": "double_click_submit",
+      "customer_email": "ethan.r@example.com",
+      "order_value_usd": 55.00
+    },
+    "expected_actions": [
+      "void_duplicate_label",
+      "confirm_correct_shipment_in_transit",
+      "log_root_cause_for_ui_fix"
+    ],
+    "expected_resolution": "Void the second label immediately if not yet scanned. Confirm original label is active and tracking correctly. Flag UI double-submit bug for engineering.",
+    "severity": "low"
+  }
+]

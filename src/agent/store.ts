@@ -87,11 +87,12 @@ export async function executeAgentRun(
       config,
       instructions,
       apiKey: env.SUBCONSCIOUS_API_KEY,
+      opsChannel: env.NTFY_OPS_CHANNEL,
+      customerChannel: env.NTFY_CUSTOMER_CHANNEL,
     });
 
     run.status = "completed";
     run.output = result.answer;
-    run.usage = result.usage;
     run.completedAt = new Date().toISOString();
   } catch (error) {
     run.status = "failed";

@@ -1,153 +1,135 @@
-// ReAct agent loop — adapted from subconscious/examples/hack-cli-starter
-// https://github.com/subconscious-systems/subconscious/tree/main/examples/hack-cli-starter
-//
-// Subconscious chat completions do not run tools server-side. We list tools in the
-// system prompt and force structured JSON output so each turn is either tool_call
-// or final_answer.
+import { SUBCONSCIOUS_BASE_URL, SUBCONSCIOUS_MODEL } from "../subconscious/client";
+import { getToolsForCaseType } from "./tools";
+import { executeTool, type ToolEnv } from "../tools/index";
+import type { AuditEntry } from "../types";
 
-import type OpenAI from "openai";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { createSubconscious, SUBCONSCIOUS_MODEL } from "../subconscious/client";
-import { buildSystemPrompt } from "./prompt";
-import { executeTool, getEnabledTools, type ToolDefinition } from "./tools";
+const SYSTEM_PROMPT = `You are a Wayfair logistics exception-resolution agent. Given a shipment exception case, analyze it and call the appropriate tools to resolve it. Call multiple tools if needed. After all tool calls complete, provide a concise summary of what was done and the resolution status.
 
-const RESPONSE_FORMAT = {
-  type: "json_schema",
-  json_schema: {
-    name: "agent_response",
-    strict: true,
-    schema: {
-      type: "object",
-      properties: {
-        action: { type: "string", enum: ["tool_call", "final_answer"] },
-        tool: { type: "string" },
-        arguments: { type: "object" },
-        content: { type: "string" },
-      },
-      required: ["action"],
-      additionalProperties: false,
-    },
-  },
-} as const satisfies OpenAI.Chat.Completions.ChatCompletionCreateParams["response_format"];
+Exception type guidance:
+- delayed_shipment        → contact_carrier (get status update), then notify_customer (delay_notice)
+- address_not_found       → notify_customer (address_correction_request); escalate if >1 delivery attempt
+- delivery_dispute        → file_claim (dispute or loss), then escalate (investigation)
+- customs_hold            → escalate (customs broker), then notify_customer (delay_notice)
+- damaged_package         → file_claim (damage, attach evidence_urls if present), then reschedule or refund based on order value
+- carrier_api_failure     → escalate (ops, critical severity); do NOT notify customers during outage
+- return_not_received     → contact_carrier, then escalate; do not issue refund yet
+- duplicate_shipment      → void_label for the duplicate tracking number; confirm primary shipment
 
-interface AgentResponse {
-  action: "tool_call" | "final_answer";
-  tool?: string;
-  arguments?: Record<string, unknown>;
-  content?: string;
-}
-
-export interface LoopStep {
-  type: "tool_call" | "tool_result" | "final_answer";
-  tool?: string;
-  arguments?: Record<string, unknown>;
-  result?: unknown;
-  content?: string;
-}
-
-export interface RunLoopInput {
-  apiKey: string;
-  systemPrompt: string;
-  instructions: string;
-  enabledTools: string[];
-  maxSteps?: number;
-  maxTokens?: number;
-  temperature?: number;
-  enableThinking?: boolean;
-}
+Always use the exact IDs, emails, and tracking numbers from the case input.`;
 
 export interface RunLoopResult {
-  answer: string;
-  steps: LoopStep[];
-  toolCalls: Array<{ name: string; arguments: string; result: string }>;
+  resolution: string;
+  auditTrail: AuditEntry[];
 }
 
-export async function runAgentLoop(input: RunLoopInput): Promise<RunLoopResult> {
-  const subconscious = createSubconscious(input.apiKey, {
-    enableThinking: input.enableThinking ?? false,
-  });
-  const chat = subconscious.chat(SUBCONSCIOUS_MODEL);
-  const tools = getEnabledTools(input.enabledTools);
-  const maxSteps = input.maxSteps ?? 8;
+export async function runAgentLoop(
+  caseInput: Record<string, unknown>,
+  apiKey: string,
+  toolEnv: ToolEnv,
+  maxTokens = 1024,
+  maxIter = 8,
+): Promise<RunLoopResult> {
+  const auditTrail: AuditEntry[] = [];
+  const caseType = String(caseInput.exception_type ?? "");
+  const tools = getToolsForCaseType(caseType);
 
-  const system = buildSystemPrompt(input.systemPrompt, tools);
-  const messages: ChatCompletionMessageParam[] = [
-    { role: "system", content: system },
-    { role: "user", content: input.instructions },
+  const messages: Record<string, unknown>[] = [
+    { role: "system", content: SYSTEM_PROMPT },
+    { role: "user", content: `Resolve this exception case:\n\n${JSON.stringify(caseInput, null, 2)}` },
   ];
 
-  const steps: LoopStep[] = [];
-  const toolCalls: RunLoopResult["toolCalls"] = [];
+  let resolution = "Unable to resolve within iteration limit.";
 
-  for (let step = 0; step < maxSteps; step++) {
-    const response = await chat.completions.create({
-      messages,
-      max_tokens: input.maxTokens ?? 1000,
-      temperature: input.temperature ?? 0.7,
-      response_format: RESPONSE_FORMAT,
+  for (let i = 0; i < maxIter; i++) {
+    const res = await fetch(`${SUBCONSCIOUS_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: SUBCONSCIOUS_MODEL,
+        max_tokens: maxTokens,
+        messages,
+        tools,
+        tool_choice: "auto",
+        chat_template_kwargs: { enable_thinking: false, enable_auto_compaction: false },
+      }),
     });
 
-    const raw = response.choices[0]?.message?.content ?? "";
-    const parsed = parseResponse(raw);
-
-    if (parsed.action === "final_answer") {
-      const content = parsed.content ?? "";
-      steps.push({ type: "final_answer", content });
-      return { answer: content, steps, toolCalls };
+    if (!res.ok) {
+      resolution = `LLM API error: ${res.status} ${res.statusText}`;
+      break;
     }
 
-    const toolName = parsed.tool ?? "";
-    const args = parsed.arguments ?? {};
-    steps.push({ type: "tool_call", tool: toolName, arguments: args });
+    const data = await res.json() as {
+      choices: Array<{
+        finish_reason: string;
+        message: {
+          role: string;
+          content: string | null;
+          tool_calls?: Array<{
+            id: string;
+            type: string;
+            function: { name: string; arguments: string };
+          }>;
+        };
+      }>;
+    };
 
-    messages.push({ role: "assistant", content: raw });
+    const choice = data.choices[0];
+    const msg = choice.message;
 
-    try {
-      const result = await executeTool(toolName, args);
-      toolCalls.push({
-        name: toolName,
-        arguments: JSON.stringify(args),
-        result,
-      });
-      steps.push({ type: "tool_result", tool: toolName, result: JSON.parse(result) });
-      messages.push({
-        role: "user",
-        content: `Tool "${toolName}" returned:\n${result}`,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      steps.push({ type: "tool_result", tool: toolName, result: { error: message } });
-      messages.push({
-        role: "user",
-        content: `Tool "${toolName}" failed with error:\n${message}`,
-      });
+    messages.push({ role: "assistant", content: msg.content ?? null, tool_calls: msg.tool_calls });
+
+    if (choice.finish_reason === "stop" || choice.finish_reason === "end_turn") {
+      resolution = msg.content ?? "Resolution complete.";
+      auditTrail.push({ timestamp: new Date().toISOString(), type: "llm_response", text: resolution });
+      break;
     }
+
+    if (choice.finish_reason === "tool_calls" && msg.tool_calls?.length) {
+      const toolResults: Record<string, unknown>[] = [];
+
+      for (const tc of msg.tool_calls) {
+        const toolName = tc.function.name;
+        let toolArgs: Record<string, unknown> = {};
+        try {
+          toolArgs = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+        } catch {
+          toolArgs = {};
+        }
+
+        auditTrail.push({
+          timestamp: new Date().toISOString(),
+          type: "tool_call",
+          tool: toolName,
+          args: toolArgs,
+        });
+
+        const result = await executeTool(toolName, toolArgs, toolEnv);
+
+        auditTrail.push({
+          timestamp: new Date().toISOString(),
+          type: "tool_result",
+          tool: toolName,
+          result,
+        });
+
+        toolResults.push({
+          role: "tool",
+          tool_call_id: tc.id,
+          content: JSON.stringify(result),
+        });
+      }
+
+      messages.push(...toolResults);
+      continue;
+    }
+
+    resolution = msg.content ?? "Stopped unexpectedly.";
+    break;
   }
 
-  return {
-    answer: `Agent exceeded ${maxSteps} steps without a final answer.`,
-    steps,
-    toolCalls,
-  };
-}
-
-function parseResponse(raw: string): AgentResponse {
-  const obj = JSON.parse(extractJson(raw)) as AgentResponse;
-  if (obj.action !== "tool_call" && obj.action !== "final_answer") {
-    throw new Error(`Unexpected action: ${JSON.stringify(obj.action)}`);
-  }
-  return obj;
-}
-
-function extractJson(raw: string): string {
-  const trimmed = raw.trim();
-  if (trimmed.startsWith("{")) return trimmed;
-  const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
-  if (start !== -1 && end > start) return trimmed.slice(start, end + 1);
-  return trimmed;
-}
-
-export function formatToolsForDocs(tools: ToolDefinition[]): string {
-  return tools.map((t) => `- **${t.name}** — ${t.description}`).join("\n");
+  return { resolution, auditTrail };
 }

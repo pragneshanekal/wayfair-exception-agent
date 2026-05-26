@@ -196,6 +196,68 @@
         color: var(--accent);
         background: var(--accent-dim);
       }
+
+      /* Case cards */
+      .case-card {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        background: #0f131c;
+        cursor: pointer;
+      }
+      .case-card:last-child { margin-bottom: 0; }
+      .case-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+      }
+      .case-id { font-size: 0.85rem; font-weight: 600; }
+      .case-type { font-size: 0.75rem; color: var(--muted); }
+      .status-pill {
+        font-size: 0.75rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        font-weight: 600;
+      }
+      .status-pill.pending    { background: #1e2a1e; color: #9aa6bf; }
+      .status-pill.processing { background: #1e2a3a; color: #60a5fa; }
+      .status-pill.resolved   { background: var(--accent-dim); color: var(--accent); }
+      .status-pill.failed     { background: #3f1d1d; color: var(--danger); }
+      .case-resolution {
+        font-size: 0.82rem;
+        color: var(--muted);
+        margin-top: 0.35rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      /* Audit trail */
+      .audit-trail { margin-top: 0.85rem; display: none; }
+      .audit-trail.open { display: block; }
+      .audit-entry {
+        font-size: 0.78rem;
+        padding: 0.45rem 0.65rem;
+        border-left: 2px solid var(--border);
+        margin-bottom: 0.4rem;
+        color: var(--muted);
+      }
+      .audit-entry.tool_call   { border-color: #60a5fa; }
+      .audit-entry.tool_result { border-color: var(--accent); }
+      .audit-entry.llm_response{ border-color: #c084fc; }
+      .audit-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 0.2rem;
+      }
+      .audit-entry.tool_call .audit-label   { color: #60a5fa; }
+      .audit-entry.tool_result .audit-label { color: var(--accent); }
+      .audit-entry.llm_response .audit-label{ color: #c084fc; }
+      .audit-body { white-space: pre-wrap; word-break: break-word; }
     </style>
   </head>
   <body>
@@ -255,6 +317,42 @@
       <section class="panel" style="margin-top: 1rem">
         <h2>Recent runs</h2>
         <div id="runs"></div>
+      </section>
+
+      <!-- ── Exception Case Submission ─────────────────────────────── -->
+      <section class="panel" style="margin-top: 1rem">
+        <h2>Submit Exception Case</h2>
+        <div class="row" style="margin-bottom: 0.85rem; align-items: flex-end; flex-wrap: wrap; gap: 0.75rem;">
+          <div style="flex: 1; min-width: 200px;">
+            <label for="exceptionType">Exception type</label>
+            <select id="exceptionType">
+              <option value="delayed_shipment">delayed_shipment</option>
+              <option value="address_not_found">address_not_found</option>
+              <option value="delivery_dispute">delivery_dispute</option>
+              <option value="customs_hold">customs_hold</option>
+              <option value="damaged_package">damaged_package</option>
+              <option value="carrier_api_failure">carrier_api_failure</option>
+              <option value="return_not_received">return_not_received</option>
+              <option value="duplicate_shipment">duplicate_shipment</option>
+            </select>
+          </div>
+          <button id="populateSample" class="secondary" type="button" style="flex-shrink:0;">Load sample</button>
+        </div>
+
+        <label for="casePayload">Case payload (JSON)</label>
+        <textarea id="casePayload" style="min-height: 200px; font-family: monospace; font-size: 0.8rem;"></textarea>
+
+        <div class="row">
+          <button id="submitCase" type="button">Submit case</button>
+          <button id="refreshCases" class="secondary" type="button">Refresh cases</button>
+        </div>
+        <p id="caseStatus" class="status"></p>
+      </section>
+
+      <!-- ── Exception Cases Grid ───────────────────────────────────── -->
+      <section class="panel" style="margin-top: 1rem">
+        <h2>Exception Cases</h2>
+        <div id="casesGrid"></div>
       </section>
     </div>
 
@@ -401,6 +499,237 @@
           $("configStatus").textContent = e.message;
           $("configStatus").className = "status error";
         });
+
+      // ── Exception Cases ──────────────────────────────────────────────
+
+      const SAMPLES = {
+        delayed_shipment: {
+          id: "case_" + Date.now(),
+          exception_type: "delayed_shipment",
+          order_id: "ORD-8821",
+          tracking_number: "1Z999AA10123456784",
+          carrier: "UPS",
+          origin: "Chicago, IL",
+          destination: "Boston, MA",
+          promised_delivery: "2026-05-22",
+          current_date: new Date().toISOString().split("T")[0],
+          last_scan: { location: "Cleveland, OH", status: "In Transit" },
+          customer_email: "jane.doe@example.com",
+          order_value_usd: 142.50,
+          severity: "medium",
+        },
+        address_not_found: {
+          id: "case_" + Date.now(),
+          exception_type: "address_not_found",
+          order_id: "ORD-4417",
+          tracking_number: "9400111899223397221318",
+          carrier: "USPS",
+          destination_address: "742 Evergreen Terr, Springfield, XX 00000",
+          delivery_attempts: 1,
+          customer_email: "homer.s@example.com",
+          order_value_usd: 59.99,
+          severity: "high",
+        },
+        delivery_dispute: {
+          id: "case_" + Date.now(),
+          exception_type: "delivery_dispute",
+          order_id: "ORD-3309",
+          tracking_number: "JD014600004293801520",
+          carrier: "FedEx",
+          marked_delivered_at: new Date().toISOString(),
+          delivery_location: "Front Door",
+          customer_reported_missing: true,
+          customer_email: "alice.wang@example.com",
+          order_value_usd: 389.00,
+          severity: "high",
+        },
+        customs_hold: {
+          id: "case_" + Date.now(),
+          exception_type: "customs_hold",
+          order_id: "ORD-7762",
+          tracking_number: "LY123456789CN",
+          carrier: "DHL",
+          origin_country: "CN",
+          destination_country: "US",
+          hold_reason: "missing_commercial_invoice",
+          customer_email: "bob.kim@example.com",
+          order_value_usd: 275.00,
+          severity: "high",
+        },
+        damaged_package: {
+          id: "case_" + Date.now(),
+          exception_type: "damaged_package",
+          order_id: "ORD-5540",
+          tracking_number: "1Z999AA10123456789",
+          carrier: "UPS",
+          damage_description: "Box crushed, item cracked",
+          photo_urls: ["https://storage.example.com/claims/ORD-5540/photo1.jpg"],
+          customer_email: "carlos.m@example.com",
+          order_value_usd: 199.95,
+          severity: "medium",
+        },
+        carrier_api_failure: {
+          id: "case_" + Date.now(),
+          exception_type: "carrier_api_failure",
+          carrier: "FedEx",
+          affected_order_count: 34,
+          error_code: 503,
+          error_message: "Service Unavailable",
+          consecutive_failures: 12,
+          severity: "critical",
+        },
+        return_not_received: {
+          id: "case_" + Date.now(),
+          exception_type: "return_not_received",
+          order_id: "ORD-2214",
+          return_tracking_number: "9261290100830413958486",
+          carrier: "USPS",
+          refund_status: "pending",
+          customer_email: "diana.p@example.com",
+          return_value_usd: 88.00,
+          severity: "medium",
+        },
+        duplicate_shipment: {
+          id: "case_" + Date.now(),
+          exception_type: "duplicate_shipment",
+          order_id: "ORD-9910",
+          tracking_numbers: ["1Z999AA10123000001", "1Z999AA10123000002"],
+          carrier: "UPS",
+          both_shipped: false,
+          customer_email: "ethan.r@example.com",
+          order_value_usd: 55.00,
+          severity: "low",
+        },
+      };
+
+      function populateSample() {
+        const type = $("exceptionType").value;
+        const sample = SAMPLES[type] ? JSON.parse(JSON.stringify(SAMPLES[type])) : {};
+        sample.id = "case_" + Date.now();
+        $("casePayload").value = JSON.stringify(sample, null, 2);
+      }
+
+      function renderAuditTrail(auditTrail) {
+        if (!auditTrail?.length) return "<p class='audit-entry'>No audit trail yet.</p>";
+        return auditTrail.map((e) => {
+          const label = e.type === "tool_call" ? `→ ${e.tool}` : e.type === "tool_result" ? `← ${e.tool}` : "✓ Resolution";
+          const body = e.type === "tool_call"
+            ? JSON.stringify(e.args, null, 2)
+            : e.type === "tool_result"
+            ? JSON.stringify(e.result, null, 2)
+            : e.text ?? "";
+          return `<div class="audit-entry ${e.type}">
+            <div class="audit-label">${label}</div>
+            <div class="audit-body">${body.slice(0, 400)}</div>
+          </div>`;
+        }).join("");
+      }
+
+      function renderCases(cases) {
+        const container = $("casesGrid");
+        if (!cases.length) {
+          container.innerHTML = "<p class='status'>No exception cases yet. Submit one above.</p>";
+          return;
+        }
+        container.innerHTML = cases.map((c) => `
+          <div class="case-card" id="card-${c.caseId}" onclick="toggleAudit('${c.caseId}')">
+            <div class="case-card-header">
+              <div>
+                <div class="case-id">${c.caseId}</div>
+                <div class="case-type">${c.exceptionType ?? ""}</div>
+              </div>
+              <span class="status-pill ${c.status}">${c.status}</span>
+            </div>
+            ${c.resolution ? `<div class="case-resolution">${c.resolution.slice(0, 200)}</div>` : ""}
+            <div class="audit-trail" id="audit-${c.caseId}">Loading audit trail...</div>
+          </div>
+        `).join("");
+      }
+
+      const openAudits = new Set();
+
+      async function toggleAudit(caseId) {
+        const el = document.getElementById(`audit-${caseId}`);
+        if (!el) return;
+        if (el.classList.contains("open")) {
+          el.classList.remove("open");
+          openAudits.delete(caseId);
+          return;
+        }
+        el.classList.add("open");
+        openAudits.add(caseId);
+        try {
+          const data = await api(`/case/${caseId}`);
+          el.innerHTML = renderAuditTrail(data.auditTrail);
+        } catch (e) {
+          el.innerHTML = `<p class='status error'>${e.message}</p>`;
+        }
+      }
+
+      async function refreshCases() {
+        try {
+          const { cases } = await api("/cases");
+          renderCases(cases);
+          // Refresh any open audit trails
+          for (const caseId of openAudits) {
+            const el = document.getElementById(`audit-${caseId}`);
+            if (el?.classList.contains("open")) {
+              const data = await api(`/case/${caseId}`).catch(() => null);
+              if (data) el.innerHTML = renderAuditTrail(data.auditTrail);
+            }
+          }
+        } catch (e) {
+          $("caseStatus").textContent = e.message;
+          $("caseStatus").className = "status error";
+        }
+      }
+
+      async function submitCase() {
+        $("submitCase").disabled = true;
+        $("caseStatus").textContent = "Submitting...";
+        $("caseStatus").className = "status";
+        try {
+          let payload;
+          try {
+            payload = JSON.parse($("casePayload").value);
+          } catch {
+            throw new Error("Invalid JSON in case payload");
+          }
+          const res = await fetch("/case", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json().catch(() => ({}));
+          $("caseStatus").textContent = `Case ${data.caseId} submitted — processing...`;
+          await refreshCases();
+          // Poll until resolved/failed
+          const caseId = data.caseId;
+          const poll = setInterval(async () => {
+            try {
+              const state = await api(`/case/${caseId}`);
+              if (state.status === "resolved" || state.status === "failed") {
+                clearInterval(poll);
+                $("caseStatus").textContent = `Case ${caseId}: ${state.status}.`;
+                await refreshCases();
+              }
+            } catch { clearInterval(poll); }
+          }, 2500);
+        } catch (e) {
+          $("caseStatus").textContent = e.message;
+          $("caseStatus").className = "status error";
+        } finally {
+          $("submitCase").disabled = false;
+        }
+      }
+
+      $("populateSample").onclick = populateSample;
+      $("submitCase").onclick = submitCase;
+      $("refreshCases").onclick = () => refreshCases().catch(() => {});
+      $("exceptionType").onchange = populateSample;
+
+      populateSample();
+      refreshCases();
     </script>
   </body>
 </html>

@@ -5,32 +5,37 @@ export interface RunAgentInput {
   config: AgentConfig;
   instructions: string;
   apiKey: string;
-  maxToolRounds?: number;
+  opsChannel?: string;
+  customerChannel?: string;
 }
 
 export interface RunAgentResult {
   answer: string;
   toolCalls: Array<{ name: string; arguments: string; result: string }>;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-  };
 }
 
 export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
-  const result = await runAgentLoop({
-    apiKey: input.apiKey,
-    systemPrompt: input.config.systemPrompt,
-    instructions: input.instructions,
-    enabledTools: input.config.enabledTools,
-    maxSteps: input.maxToolRounds ?? 8,
-    maxTokens: input.config.maxTokens,
-    temperature: input.config.temperature,
-    enableThinking: input.config.enableThinking,
-  });
+  const result = await runAgentLoop(
+    { instructions: input.instructions, source: "api" },
+    input.apiKey,
+    {
+      opsChannel: input.opsChannel ?? "wayfair-logistics-ops",
+      customerChannel: input.customerChannel ?? "wayfair-logistics-customer",
+    },
+    input.config.maxTokens,
+  );
 
-  return {
-    answer: result.answer,
-    toolCalls: result.toolCalls,
-  };
+  const toolCalls = result.auditTrail
+    .filter((e) => e.type === "tool_call")
+    .map((e) => ({
+      name: e.tool ?? "",
+      arguments: JSON.stringify(e.args ?? {}),
+      result: JSON.stringify(
+        result.auditTrail.find(
+          (r) => r.type === "tool_result" && r.tool === e.tool,
+        )?.result ?? {},
+      ),
+    }));
+
+  return { answer: result.resolution, toolCalls };
 }

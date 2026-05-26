@@ -28,7 +28,32 @@ export interface Env {
   SUBCONSCIOUS_API_KEY: string;
   WEBHOOK_SECRET?: string;
   AGENT_KV: KVNamespace;
+  CASE_INDEX: KVNamespace;
+  EXCEPTION_DO: DurableObjectNamespace;
+  AUDIT_LOG: R2Bucket;
   ASSETS: Fetcher;
+  NTFY_OPS_CHANNEL: string;
+  NTFY_CUSTOMER_CHANNEL: string;
+}
+
+export interface AuditEntry {
+  timestamp: string;
+  type: "tool_call" | "tool_result" | "llm_response";
+  tool?: string;
+  args?: Record<string, unknown>;
+  result?: unknown;
+  text?: string;
+}
+
+export interface CaseState {
+  caseId: string;
+  status: "pending" | "processing" | "resolved" | "failed";
+  retries: number;
+  resolution: string | null;
+  auditTrail: AuditEntry[];
+  input: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const CONFIG_KEY = "agent:config";
